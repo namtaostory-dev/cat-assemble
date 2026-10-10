@@ -66,7 +66,7 @@ function showEnemy(e) {
   const el = $('enemy');
   let w, h, cx;
   if (e.boss) {
-    w = e.big ? 350 : 320; h = w * GOLEM_RATIO; cx = 195;
+    w = e.big ? 320 : 290; h = w * GOLEM_RATIO; cx = 195;
     el.innerHTML = `<img class="boss" src="assets/enemies/golem.png" alt="" style="filter:hue-rotate(${e.hue}deg)">`;
   } else {
     w = 210 * 0.72; h = 270 * 0.72; cx = 195;
@@ -76,7 +76,7 @@ function showEnemy(e) {
   el.style.height = h + 'px';
   el.style.left = cx + 'px';
   el.style.marginLeft = -w / 2 + 'px';
-  el.style.top = 520 - h + 'px';
+  el.style.top = 612 - h + 'px';
   el.classList.toggle('big', !!e.big);
   el.classList.remove('hit');
   el.classList.add('spawn');
@@ -109,9 +109,9 @@ function popText(text, x, y, cls, stackKey) {
   d.innerHTML = '<span class="o"></span><span class="f"></span>';
   d.firstChild.textContent = d.lastChild.textContent = text;
   if (stackKey) {
-    const e = center($('enemy'));
+    const el = $('enemy'), e = center(el), top = parseFloat(el.style.top) || e.y;
     x = e.x + { hero: -40, cat: 50, dot: 5 }[stackKey] + (Math.random() * 10 - 5);
-    y = e.y - 40 - stackRow(stackKey) * (cls === 'crit' ? 36 : 30);
+    y = top + 40 - stackRow(stackKey) * (cls === 'crit' ? 36 : 30);
   } else {
     x += Math.random() * 20 - 10;
   }
@@ -153,10 +153,11 @@ function enemyPoint() {
 // ---------- แมวบนแท่นหิน: x = กึ่งกลางตัว, y = ระดับเท้า ----------
 // r = อยู่ฝั่งขวา หันหน้าไปทางซ้าย
 const SLOT_POS = [
-  { x: 50, y: 434 }, { x: 112, y: 434 },                      // เกาะซ้าย
-  { x: 278, y: 434, r: true }, { x: 340, y: 434, r: true },   // เกาะขวา
-  { x: 34, y: 666 }, { x: 96, y: 666 },                       // ทางเดินซ้ายของตัวเรา
-  { x: 294, y: 666, r: true }, { x: 356, y: 666, r: true },   // ทางเดินขวาของตัวเรา
+  // สลับซ้าย-ขวา แมวที่ได้มาก่อนจะกระจายสองฝั่ง เรียงจากชั้นบนลงล่าง
+  { x: 50, y: 330 }, { x: 340, y: 330, r: true },
+  { x: 66, y: 420 }, { x: 324, y: 420, r: true },
+  { x: 50, y: 510 }, { x: 340, y: 510, r: true },
+  { x: 66, y: 600 }, { x: 324, y: 600, r: true },
 ];
 const slots = SLOT_POS.map(pos => {
   const el = document.createElement('div');

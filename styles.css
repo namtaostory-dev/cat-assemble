@@ -44,8 +44,8 @@ button { font:inherit; color:inherit; }
 .battle { position:absolute; left:0; right:0; top:200px; bottom:180px; z-index:2; cursor:pointer; }
 
 /* หน้าผาและแมว */
-.ledge { position:absolute; width:120px; height:16px; background:#6bbd3a; border-radius:8px 8px 4px 4px; box-shadow:0 6px 0 #8b5a2b, 0 12px 0 #6e4421; z-index:2; pointer-events:none; }
-.ledge.l { left:-14px; } .ledge.r { right:-14px; }
+.ledge { position:absolute; width:124px; height:16px; background:linear-gradient(#86b04c 0 5px, #a39a82 5px); border-radius:6px 6px 3px 3px; box-shadow:0 6px 0 #7d735f, 0 12px 0 #5c5446, 0 14px 6px rgba(0,0,0,.25); z-index:2; pointer-events:none; }
+.ledge.l { left:-18px; } .ledge.r { right:-18px; }
 .cat { position:absolute; width:80px; margin-left:-40px; z-index:4; transform:translateY(-100%); transition:transform .1s, filter .3s; pointer-events:none; }
 .cat img { height:80px; width:auto; max-width:120px; object-fit:contain; display:block; margin-left:50%; transform:translateX(-50%); filter:drop-shadow(0 3px 2px rgba(0,0,0,.35)); }
 .cat.r img { transform:translateX(-50%) scaleX(-1); }
@@ -65,7 +65,7 @@ button { font:inherit; color:inherit; }
 @keyframes hit { 50% { transform:scale(.97) rotate(-.6deg); filter:brightness(1.1); } }
 @keyframes spawn { from { transform:scale(.3); opacity:0; } }
 
-.hero { position:absolute; left:126px; top:452px; width:209px; height:140px; z-index:5; image-rendering:pixelated; filter:drop-shadow(0 4px 3px rgba(0,0,0,.35)); pointer-events:none; }
+.hero { position:absolute; left:127px; top:526px; width:209px; height:140px; z-index:5; image-rendering:pixelated; filter:drop-shadow(0 4px 3px rgba(0,0,0,.35)); pointer-events:none; }
 .hero.atk { transform:translateY(-8px) scale(1.06); }
 
 /* เอฟเฟกต์ */
@@ -150,7 +150,7 @@ button { font:inherit; color:inherit; }
 
 
 /* หลอดฟันอัตโนมัติของตัวเรา */
-.herobar { position:absolute; left:167px; top:596px; width:56px; height:6px; z-index:5; background:var(--ink); border-radius:3px; overflow:hidden; z-index:3; }
+.herobar { position:absolute; left:167px; top:664px; width:56px; height:6px; z-index:5; background:var(--ink); border-radius:3px; overflow:hidden; z-index:3; }
 .herobar i { display:block; height:100%; width:0; background:#ffd23a; }
 .slashfx { position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border-top:6px solid #fff; border-right:3px solid rgba(255,255,255,.4); box-shadow:0 -6px 12px -4px #ffe27a; animation:slash .18s ease-out forwards; pointer-events:none; }
 .slashfx.crit { border-top-color:#ff8a5a; box-shadow:0 -6px 16px -2px #ff5a3a; }
