@@ -1,5 +1,5 @@
 // เพิ่มไฟล์ใหม่ในเกมเมื่อไหร่ ให้ใส่ใน SHELL และเปลี่ยนเลขเวอร์ชัน
-const CACHE = 'cat-assemble-v2';
+const CACHE = 'cat-assemble-v3';
 const SHELL = [
   './',
   'index.html',
@@ -19,6 +19,10 @@ const SHELL = [
   'assets/cats/poison.png',
   'assets/cats/thunder.png',
   'assets/cats/wind.png',
+  'assets/hero/slash1.png',
+  'assets/hero/slash2.png',
+  'assets/hero/slash3.png',
+  'assets/hero/slash4.png',
   'assets/icons/apple-touch-icon.png',
   'assets/icons/icon-192.png',
   'assets/icons/icon-512.png',

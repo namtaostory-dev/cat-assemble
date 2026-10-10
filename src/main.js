@@ -63,7 +63,7 @@ function showEnemy(e) {
   el.style.width = 210 * size + 'px';
   el.style.height = 270 * size + 'px';
   el.style.marginLeft = -105 * size + 'px';
-  el.style.top = 214 + 270 * (1 - size) * 0.9 + 'px';
+  el.style.top = 650 - 270 * size + 'px';
   el.innerHTML = enemySvg(e);
   el.classList.remove('hit');
   el.classList.add('spawn');
@@ -118,14 +118,19 @@ function enemyPoint() {
   return { x: c.x + Math.random() * 70 - 35, y: c.y + Math.random() * 70 - 50 };
 }
 
-// ---------- แมวบนหน้าผา: ช่อง 0-3 ซ้าย, 4-7 ขวา ----------
-const LEDGE_Y = [344, 438, 532, 626];
-const slots = Array.from({ length: BAL.teamSize }, (_, i) => {
-  const right = i >= 4, row = i % 4;
+// ---------- แมวบนแท่นหิน: x = กึ่งกลางตัว, y = ระดับเท้า ----------
+// r = อยู่ฝั่งขวา หันหน้าไปทางซ้าย
+const SLOT_POS = [
+  { x: 38, y: 316 }, { x: 104, y: 316 },
+  { x: 290, y: 316, r: true }, { x: 356, y: 316, r: true },
+  { x: 36, y: 414 }, { x: 98, y: 414 },
+  { x: 30, y: 512 }, { x: 82, y: 512 },
+];
+const slots = SLOT_POS.map(pos => {
   const el = document.createElement('div');
-  el.className = 'cat empty ' + (right ? 'r' : 'l');
-  el.style[right ? 'right' : 'left'] = (row % 2 ? 10 : 4) + 'px';
-  el.style.top = LEDGE_Y[row] + 'px';
+  el.className = 'cat empty ' + (pos.r ? 'r' : 'l');
+  el.style.left = pos.x + 'px';
+  el.style.top = (pos.y + 6) + 'px';
   el.innerHTML = '<div class="bar"><i></i></div><img alt=""><span class="lvtag"></span>';
   $('cats').appendChild(el);
   return { el, img: el.querySelector('img'), bar: el.querySelector('.bar i'), tag: el.querySelector('.lvtag'), id: null, charge: Math.random() };
@@ -158,13 +163,25 @@ function shoot(sl, shots = 1) {
 
 // ---------- ตัวเรา: ฟันอัตโนมัติ + แตะเพื่อฟันเพิ่ม ----------
 let lastHit = null, heroCharge = 0;
+// ท่าฟัน: ยกดาบ → ง้าง → ฟัน แล้วกลับท่ายืน เฟรมละ 45 มิลลิวินาที
+const HERO_FRAMES = [1, 2, 3, 4].map(n => { const im = new Image(); im.src = `assets/hero/slash${n}.png`; return im.src; });
+let heroAnim = null;
+function playSlash() {
+  const h = $('hero');
+  clearTimeout(heroAnim);
+  let i = 1;
+  const step = () => {
+    h.src = HERO_FRAMES[i];
+    if (i++ < 3) heroAnim = setTimeout(step, 45);
+    else heroAnim = setTimeout(() => (h.src = HERO_FRAMES[0]), 90);
+  };
+  step();
+}
 function heroSlash(p, source) {
   lastHit = p;
   if (source === 'tap') { if (!game.tap()) { lastHit = null; return; } }
   else game.slash('auto');
-  const h = $('hero');
-  h.classList.remove('slash'); void h.offsetWidth; h.classList.add('slash');
-  setTimeout(() => h.classList.remove('slash'), 90);
+  playSlash();
 }
 $('battle').addEventListener('pointerdown', e => heroSlash(toScene(e.clientX, e.clientY), 'tap'));
 $('fight').addEventListener('click', () => {

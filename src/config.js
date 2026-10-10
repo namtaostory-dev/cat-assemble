@@ -60,7 +60,7 @@ export const GACHA = { cost1: 100, cost10: 900, pity: 50 };
 // ใช้แมวซ้ำกี่ตัวเพื่ออัปจาก ★1→2, 2→3, 3→4, 4→5
 export const STAR = { dupes: [1, 2, 4, 8], max: 5, skillPerStar: 0.2 };
 
-export const HERO = { name: 'CatMaster', img: 'assets/cats/hero.png' };
+export const HERO = { name: 'CatMaster', img: 'assets/hero/slash1.png' };
 export const STARTER = 'volt';
 
 // img = ชื่อไฟล์ภาพใน assets/cats และ assets/skills

@@ -47,7 +47,7 @@ button { font:inherit; color:inherit; }
 /* หน้าผาและแมว */
 .ledge { position:absolute; width:120px; height:16px; background:#6bbd3a; border-radius:8px 8px 4px 4px; box-shadow:0 6px 0 #8b5a2b, 0 12px 0 #6e4421; z-index:2; pointer-events:none; }
 .ledge.l { left:-14px; } .ledge.r { right:-14px; }
-.cat { position:absolute; width:78px; z-index:3; transform:translateY(-100%); transition:transform .1s, filter .3s; pointer-events:none; }
+.cat { position:absolute; width:66px; margin-left:-33px; z-index:3; transform:translateY(-100%); transition:transform .1s, filter .3s; pointer-events:none; }
 .cat img { width:100%; display:block; filter:drop-shadow(0 3px 2px rgba(0,0,0,.35)); }
 .cat.r img { transform:scaleX(-1); }
 .cat .bar { position:absolute; top:-10px; left:16px; right:16px; height:6px; background:var(--ink); border-radius:3px; overflow:hidden; }
@@ -59,14 +59,14 @@ button { font:inherit; color:inherit; }
 .cat.atk { transform:translateY(-100%) translateX(6px) scale(1.06); }
 .cat.r.atk { transform:translateY(-100%) translateX(-6px) scale(1.06); }
 
-#enemy { position:absolute; left:50%; top:214px; width:210px; height:270px; margin-left:-105px; z-index:2; pointer-events:none; transform-origin:50% 95%; }
+#enemy { position:absolute; left:285px; top:380px; width:210px; height:270px; margin-left:-105px; z-index:2; pointer-events:none; transform-origin:50% 95%; }
 #enemy svg { width:100%; height:100%; overflow:visible; }
 #enemy.hit { animation:hit .12s; }
 #enemy.spawn { animation:spawn .3s; }
 @keyframes hit { 50% { transform:scale(.95) rotate(-1deg); filter:brightness(1.5); } }
 @keyframes spawn { from { transform:scale(.3); opacity:0; } }
 
-.hero { position:absolute; left:50%; bottom:212px; width:84px; margin-left:-42px; z-index:3; filter:drop-shadow(0 0 14px #ffb300); pointer-events:none; transition:transform .08s; }
+.hero { position:absolute; left:40px; top:490px; width:247px; height:165px; z-index:3; image-rendering:pixelated; filter:drop-shadow(0 4px 3px rgba(0,0,0,.35)); pointer-events:none; }
 .hero.atk { transform:translateY(-8px) scale(1.06); }
 
 /* เอฟเฟกต์ */
@@ -170,9 +170,8 @@ button { font:inherit; color:inherit; }
 .gachabtn .badge.on { background:#e8412f; }
 
 /* หลอดฟันอัตโนมัติของตัวเรา */
-.herobar { position:absolute; left:50%; bottom:206px; width:56px; height:6px; margin-left:-28px; background:var(--ink); border-radius:3px; overflow:hidden; z-index:3; }
+.herobar { position:absolute; left:92px; top:660px; width:56px; height:6px; background:var(--ink); border-radius:3px; overflow:hidden; z-index:3; }
 .herobar i { display:block; height:100%; width:0; background:#ffd23a; }
-.hero.slash { transform:translateY(-14px) rotate(-6deg) scale(1.08); }
 .slashfx { position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border-top:6px solid #fff; border-right:3px solid rgba(255,255,255,.4); box-shadow:0 -6px 12px -4px #ffe27a; animation:slash .18s ease-out forwards; pointer-events:none; }
 .slashfx.crit { border-top-color:#ff8a5a; box-shadow:0 -6px 16px -2px #ff5a3a; }
 @keyframes slash { from { transform:rotate(var(--r)) scale(.6); opacity:1; } to { transform:rotate(calc(var(--r) + 70deg)) scale(1.1); opacity:0; } }
@@ -226,3 +225,6 @@ button { font:inherit; color:inherit; }
 .card .note.new { color:#ffe27a; font-weight:600; }
 .card .rar { position:absolute; left:1px; top:1px; margin:0; font-size:9.5px; }
 @keyframes reveal { to { opacity:1; transform:none; } }
+
+/* แท่นหิน */
+.rock { position:absolute; height:22px; background:#9a8a78; border-radius:50% 50% 8px 8px / 14px 14px 8px 8px; box-shadow:0 8px 0 #7a6a5a, 0 16px 0 #5e5044, inset 0 3px 0 #b8a894; z-index:2; pointer-events:none; }
