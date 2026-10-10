@@ -1,6 +1,8 @@
 :root { --ink:#1d2a44; --gold:#ffc83a; --panel:#16203a; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { margin:0; height:100%; overflow:hidden; }
+html, body { margin:0; height:100%; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
+/* ล็อกหน้าเว็บให้เท่าจอ: ส่วนที่ยื่นเกินขอบ (ฉากหลัง แผ่นที่ซ่อนอยู่) ถูกตัด หน้าเลื่อนหรือหดไม่ได้ */
+body { position:fixed; inset:0; }
 html { background:#3b3a2e; }
 body { background:linear-gradient(#5cc4f2 0 50%, #5d4026 50% 100%); font-family:'Mitr', system-ui, sans-serif; color:#fff; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:manipulation; }
 img { -webkit-user-drag:none; user-select:none; }
@@ -41,7 +43,7 @@ button { font:inherit; color:inherit; }
 #wave.hot { color:#ffd0c4; }
 
 /* พื้นที่แตะ */
-.battle { position:absolute; left:0; right:0; top:200px; bottom:180px; z-index:2; cursor:pointer; }
+.battle { position:absolute; left:0; right:0; top:200px; bottom:180px; z-index:2; cursor:pointer; touch-action:none; }
 
 /* หน้าผาและแมว */
 .ledge { position:absolute; width:124px; height:16px; background:linear-gradient(#86b04c 0 5px, #a39a82 5px); border-radius:6px 6px 3px 3px; box-shadow:0 6px 0 #7d735f, 0 12px 0 #5c5446, 0 14px 6px rgba(0,0,0,.25); z-index:2; pointer-events:none; }

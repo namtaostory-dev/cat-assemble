@@ -23,6 +23,10 @@ function fit() {
   document.body.style.background = `linear-gradient(#61aad3 ${at(0)}, #a9cde0 ${at(300)}, #8a9a72 ${at(470)}, #6f7a55 ${at(600)}, #7a7a5d ${at(656)}, #2a291f ${at(656)}, #3b3a2e ${at(660)})`;
 }
 window.addEventListener('resize', fit);
+// iOS ไม่สนใจ user-scalable=no: กันซูมสองนิ้วและแตะสองครั้งเอง และถ้าหน้าเลื่อนไปเมื่อไหร่ให้ดึงกลับ
+['gesturestart', 'gesturechange'].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+window.addEventListener('scroll', () => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
 window.addEventListener('orientationchange', () => setTimeout(fit, 200));
 fit();
 
