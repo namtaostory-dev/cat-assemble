@@ -1,5 +1,5 @@
 // เพิ่มไฟล์ใหม่ในเกมเมื่อไหร่ ให้ใส่ใน SHELL และเปลี่ยนเลขเวอร์ชัน
-const CACHE = 'cat-assemble-v7';
+const CACHE = 'cat-assemble-v8';
 const SHELL = [
   './',
   'index.html',
@@ -72,8 +72,9 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin === location.origin) {
+    // no-cache: ถามเซิร์ฟเวอร์ทุกครั้งว่าไฟล์เปลี่ยนไหม (ไม่ใช้ของที่เบราว์เซอร์จำไว้ 10 นาที)
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then(res => {
           if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
           return res;

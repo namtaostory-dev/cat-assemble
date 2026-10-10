@@ -18,6 +18,9 @@ function fit() {
   scale = Math.min(w / 390, h / 844);
   const x = (w - 390 * scale) / 2, y = top + (h - 844 * scale) / 2;
   gameEl.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+  // ขอบที่เหลือข้างฉาก: ฟ้าจนถึงระดับพื้นหญ้าในฉาก แล้วเป็นหญ้าและดิน ให้ต่อกับฉากพอดี
+  const at = sy => (y + sy * scale).toFixed(1) + 'px';
+  document.body.style.background = `linear-gradient(#5cc4f2 ${at(0)}, #9fdcf7 ${at(320)}, #cdeccf ${at(506)}, #b8d9a0 ${at(614)}, #6bbd3a ${at(614)}, #6bbd3a ${at(654)}, #5d4026 ${at(654)})`;
 }
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', () => setTimeout(fit, 200));
