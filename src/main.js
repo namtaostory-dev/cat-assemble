@@ -1,4 +1,4 @@
-import { BAL, CATS, GACHA, STAR, SKILLS, HERO } from './config.js';
+import { BAL, CATS, GACHA, STAR, SKILLS, HERO, PASSIVES } from './config.js';
 import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
 import { Game, catById, swordDmgAt, nextMile, isBigBoss, skillPower } from './game.js';
@@ -312,8 +312,13 @@ function buildHeroList() {
   sect('ตัวเรา');
   add('sword', HERO.img);
   add('speed', HERO.img);
-  sect('แมวในทีม');
+  sect(`แมวในทีม ${state.team.length}/${BAL.teamSize}`);
   state.team.forEach(id => add('cat:' + id, `assets/cats/${catById(id).img}.png`));
+  const reserve = CATS.filter(c => state.cats[c.id] && !state.team.includes(c.id));
+  if (reserve.length) {
+    sect('สำรอง · ไม่ได้ลงทีม');
+    reserve.forEach(c => add('cat:' + c.id, `assets/cats/${c.img}.png`));
+  }
   const missing = CATS.filter(c => !state.cats[c.id]);
   if (missing.length) {
     sect('ยังไม่มี · หาได้จากกาชา');
@@ -343,13 +348,15 @@ function updateHeroList() {
       const need = game.starCost(id);
       const starBtn = need === null ? '' :
         `<button class="starup ${o.dupes >= need ? 'ok' : ''}" data-star="${id}">อัปดาว ${o.dupes}/${need}</button>`;
-      nm = `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span> <small>Lv ${o.lv}</small>`;
-      sub = `${starsHtml(o.star)}${starBtn}<br>DPS ${fmt(game.catDps(id))} · ${SKILLS[id].name}: ${SKILLS[id].desc(skillPower(o.star))}`;
+      const inTeam = state.team.includes(id), p = skillPower(o.star);
+      nm = `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span> <small>Lv ${o.lv}</small><button class="teambtn ${inTeam ? 'on' : ''}" data-team="${id}">${inTeam ? 'ในทีม' : 'ลงทีม'}</button>`;
+      sub = `${starsHtml(o.star)}${starBtn}<br>DPS ${fmt(inTeam ? game.catDps(id) : 0)} · ${SKILLS[id].name}: ${SKILLS[id].desc(p)}` +
+        (c.passive ? `<br><span class="p on">พาสซีฟ: ${PASSIVES[c.passive].text(p)}</span>` : '');
       label = `อัป ×${q.n}`;
     } else {
       const c = catById(id);
       setHtml(row.nm, `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span>`);
-      setHtml(row.sub, `<span class="tag">${SKILLS[id].name}: ${SKILLS[id].desc(1)}</span>`);
+      setHtml(row.sub, `<span class="tag">${SKILLS[id].name}: ${SKILLS[id].desc(1)}${c.passive ? '<br>พาสซีฟ: ' + PASSIVES[c.passive].text(1) : ''}</span>`);
       continue;
     }
     setHtml(row.nm, nm);
@@ -360,6 +367,14 @@ function updateHeroList() {
   }
 }
 $('heroList').addEventListener('click', e => {
+  const tb = e.target.closest('[data-team]');
+  if (tb) {
+    const id = tb.dataset.team, r = game.toggleTeam(id);
+    if (r === 'full') toast(`ทีมเต็ม ${BAL.teamSize} ตัวแล้ว ถอดตัวอื่นออกก่อน`);
+    else if (r === 'last') toast('ทีมต้องมีแมวอย่างน้อย 1 ตัว');
+    else { layoutTeam(); buildHeroList(); updateHeroList(); updateHud(); saveState(state); }
+    return;
+  }
   const star = e.target.closest('[data-star]');
   if (star) {
     const id = star.dataset.star;

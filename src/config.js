@@ -73,7 +73,17 @@ export const CATS = [
   { id: 'gale',  name: 'เกล',     img: 'wind',    rarity: 'SR',  color: '#4fe3d6' },
   { id: 'lumi',  name: 'ลูมิ',    img: 'light',   rarity: 'SSR', color: '#fff2a0' },
   { id: 'nox',   name: 'น็อกซ์',  img: 'dark',    rarity: 'SSR', color: '#a35cff' },
+  // แมวพิกเซล มีพาสซีฟติดตัวเมื่ออยู่ในทีม (แรงขึ้นตามดาวเหมือนสกิล)
+  { id: 'bombardier', name: 'บอมเบอร์', img: 'bombardier', rarity: 'R',   color: '#ff9a3a', passive: 'teamDps' },
+  { id: 'saboteur',   name: 'ซาโบ',     img: 'saboteur',   rarity: 'SR',  color: '#ff5a4a', passive: 'crit' },
+  { id: 'empress',    name: 'เอ็มเพรส', img: 'empress',    rarity: 'SSR', color: '#ff9ad5', passive: 'bossHp' },
 ];
+
+export const PASSIVES = {
+  teamDps: { text: p => `DPS แมวทั้งทีม +${Math.round(10 * p)}%` },
+  crit:    { text: p => `โอกาสคริติคอล +${Math.round(5 * p)}%` },
+  bossHp:  { text: p => `HP บอสลดลง ${Math.round(Math.min(50, 10 * p))}%` },
+};
 
 // สกิลเฉพาะของแมวแต่ละตัว p = พลังสกิลตามดาว (★1 = 1, +0.2 ต่อดาว)
 export const SKILLS = {
@@ -85,6 +95,9 @@ export const SKILLS = {
   gale:  { name: 'ลมเร่ง',          cd: 300, dur: 30, desc: p => `ตัวเราฟันเร็ว ×${(1 + 2 * p).toFixed(1)} 30 วิ` },
   lumi:  { name: 'แสงศักดิ์สิทธิ์',   cd: 480, dur: 30, desc: p => `DPS แมวทุกตัว ×${(1 + p).toFixed(1)} 30 วิ` },
   nox:   { name: 'คืนจันทร์ดับ',     cd: 600, dur: 30, desc: p => `ดาเมจคริติคอล ×${(1 + 2 * p).toFixed(1)} 30 วิ` },
+  bombardier: { name: 'ระเบิดลูกใหญ่',  cd: 150, dur: 0, desc: p => `ดาเมจทันที = DPS ทีม ×${Math.round(15 * p)}` },
+  saboteur:   { name: 'ไดนาไมต์ลูกโซ่', cd: 240, dur: 0, desc: p => `คริติคอลทันที = ดาเมจดาบ ×${Math.round(40 * p)} ×คริ` },
+  empress:    { name: 'ฝนเวทมนตร์',    cd: 300, dur: 0, desc: p => `ดาเมจทันที = DPS ทีม ×${Math.round(30 * p)}` },
 };
 
 // ทุก 50 ด่านเปลี่ยนโซน ครบแล้ววนใหม่

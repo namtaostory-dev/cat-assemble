@@ -1,5 +1,5 @@
 // เพิ่มไฟล์ใหม่ในเกมเมื่อไหร่ ให้ใส่ใน SHELL และเปลี่ยนเลขเวอร์ชัน
-const CACHE = 'cat-assemble-v3';
+const CACHE = 'cat-assemble-v4';
 const SHELL = [
   './',
   'index.html',
@@ -11,6 +11,12 @@ const SHELL = [
   'src/state.js',
   'src/format.js',
   'assets/cats/dark.png',
+  'assets/cats/saboteur.png',
+  'assets/skills/saboteur.png',
+  'assets/cats/empress.png',
+  'assets/skills/empress.png',
+  'assets/cats/bombardier.png',
+  'assets/skills/bombardier.png',
   'assets/cats/earth.png',
   'assets/cats/fire.png',
   'assets/cats/hero.png',

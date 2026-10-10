@@ -36,11 +36,16 @@ export class Game {
   active(id, now = Date.now()) { return !!this.s.cats[id] && (this.s.skillUntil[id] || 0) > now; }
   power(id) { return skillPower(this.s.cats[id]?.star || 1); }
   inTeam(id) { return this.s.team.includes(id); }
+  // ค่าพาสซีฟจากแมวในทีม (0 ถ้าไม่มี) คืนพลังตามดาวของตัวที่มีพาสซีฟนั้น
+  passive(type) {
+    const c = CATS.find(x => x.passive === type && this.inTeam(x.id));
+    return c ? this.power(c.id) : 0;
+  }
 
   catDps(id) {
     const c = this.s.cats[id];
     if (!c || !this.inTeam(id)) return 0;
-    return catDpsAt(id, c.lv, c.star) * (this.active('lumi') ? 1 + this.power('lumi') : 1);
+    return catDpsAt(id, c.lv, c.star) * (this.active('lumi') ? 1 + this.power('lumi') : 1) * (1 + 0.1 * this.passive('teamDps'));
   }
   totalDps() { return this.s.team.reduce((sum, id) => sum + this.catDps(id), 0); }
   baseDps() {
@@ -52,7 +57,7 @@ export class Game {
     return base * (this.active('gale') ? 1 + 2 * this.power('gale') : 1);
   }
   heroDps() { return this.slashDamage() * this.autoRate() * (1 + this.critChance() * (this.critMul() - 1)); }
-  critChance() { return BAL.baseCrit + (this.active('volt') ? 0.3 * this.power('volt') : 0); }
+  critChance() { return BAL.baseCrit + 0.05 * this.passive('crit') + (this.active('volt') ? 0.3 * this.power('volt') : 0); }
   critMul() { return BAL.critMul * (this.active('nox') ? 1 + 2 * this.power('nox') : 1); }
   goldMul(now) { return this.active('rock', now) ? 1 + this.power('rock') : 1; }
   bossTimeLimit() { return isBigBoss(this.s.stage) ? BAL.bigBossTime : BAL.bossTime; }
@@ -63,7 +68,8 @@ export class Game {
     const s = this.s.stage, zone = zoneOf(s);
     const boss = !this.s.farming && this.s.kills >= BAL.enemiesPerStage;
     const big = boss && isBigBoss(s);
-    const hp = hpOf(s) * (boss ? BAL.bossHpMul * (big ? BAL.bigBossMul : 1) : 1);
+    const cut = boss ? Math.min(0.5, 0.1 * this.passive('bossHp')) : 0;
+    const hp = hpOf(s) * (boss ? BAL.bossHpMul * (big ? BAL.bigBossMul : 1) : 1) * (1 - cut);
     const names = boss ? zone.bosses : zone.enemies;
     this.enemy = { boss, big, hp, maxHp: hp, name: names[(s + this.s.kills) % names.length], hue: zone.hue };
     this.bossLeft = boss ? this.bossTimeLimit() : 0;
@@ -214,6 +220,21 @@ export class Game {
     return { id, rarity, dupe: true, canStar: owned.dupes >= STAR.dupes[owned.star - 1] };
   }
 
+  // ---------- จัดทีม ----------
+  // คืน 'in' | 'out' | 'full' | 'last'
+  toggleTeam(id) {
+    const t = this.s.team;
+    if (!this.s.cats[id]) return null;
+    if (t.includes(id)) {
+      if (t.length <= 1) return 'last';
+      t.splice(t.indexOf(id), 1);
+      return 'out';
+    }
+    if (t.length >= BAL.teamSize) return 'full';
+    t.push(id);
+    return 'in';
+  }
+
   // ---------- ดาว ----------
   starCost(id) {
     const c = this.s.cats[id];
@@ -252,6 +273,9 @@ export class Game {
     if (dur) this.s.skillUntil[id] = now + dur * 1000;
     this.hooks.onSkill?.(id);
     if (id === 'blaze') this.damage(this.slashDamage() * 60 * p, 'skill');
+    if (id === 'bombardier') this.damage(this.totalDps() * 15 * p, 'skill');
+    if (id === 'empress') this.damage(this.totalDps() * 30 * p, 'skill');
+    if (id === 'saboteur') this.damage(this.slashDamage() * 40 * p * this.critMul(), 'skill', true);
     return true;
   }
 

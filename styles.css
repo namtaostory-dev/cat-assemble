@@ -47,9 +47,9 @@ button { font:inherit; color:inherit; }
 /* หน้าผาและแมว */
 .ledge { position:absolute; width:120px; height:16px; background:#6bbd3a; border-radius:8px 8px 4px 4px; box-shadow:0 6px 0 #8b5a2b, 0 12px 0 #6e4421; z-index:2; pointer-events:none; }
 .ledge.l { left:-14px; } .ledge.r { right:-14px; }
-.cat { position:absolute; width:66px; margin-left:-33px; z-index:3; transform:translateY(-100%); transition:transform .1s, filter .3s; pointer-events:none; }
-.cat img { width:100%; display:block; filter:drop-shadow(0 3px 2px rgba(0,0,0,.35)); }
-.cat.r img { transform:scaleX(-1); }
+.cat { position:absolute; width:80px; margin-left:-40px; z-index:3; transform:translateY(-100%); transition:transform .1s, filter .3s; pointer-events:none; }
+.cat img { height:80px; width:auto; max-width:120px; object-fit:contain; display:block; margin-left:50%; transform:translateX(-50%); filter:drop-shadow(0 3px 2px rgba(0,0,0,.35)); }
+.cat.r img { transform:translateX(-50%) scaleX(-1); }
 .cat .bar { position:absolute; top:-10px; left:16px; right:16px; height:6px; background:var(--ink); border-radius:3px; overflow:hidden; }
 .cat .bar i { display:block; height:100%; width:0; background:#5fe05a; }
 .cat.locked img { filter:brightness(0) opacity(.35); }
@@ -228,3 +228,7 @@ button { font:inherit; color:inherit; }
 
 /* แท่นหิน */
 .rock { position:absolute; height:22px; background:#9a8a78; border-radius:50% 50% 8px 8px / 14px 14px 8px 8px; box-shadow:0 8px 0 #7a6a5a, 0 16px 0 #5e5044, inset 0 3px 0 #b8a894; z-index:2; pointer-events:none; }
+
+.teambtn { border:0; border-radius:8px; background:#3a4562; color:#cfd8ec; font-size:11px; padding:1px 8px; margin-left:6px; cursor:pointer; vertical-align:1px; }
+.teambtn.on { background:#2f7a4a; color:#d9ffe0; }
+.banner { grid-template-columns:repeat(4, 1fr); }
