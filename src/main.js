@@ -20,7 +20,7 @@ function fit() {
   gameEl.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
   // ขอบที่เหลือข้างฉาก: ฟ้าจนถึงระดับพื้นหญ้าในฉาก แล้วเป็นหญ้าและดิน ให้ต่อกับฉากพอดี
   const at = sy => (y + sy * scale).toFixed(1) + 'px';
-  document.body.style.background = `linear-gradient(#5cc4f2 ${at(0)}, #9fdcf7 ${at(320)}, #cdeccf ${at(506)}, #b8d9a0 ${at(614)}, #6bbd3a ${at(614)}, #6bbd3a ${at(654)}, #5d4026 ${at(654)})`;
+  document.body.style.background = `linear-gradient(#61aad3 ${at(0)}, #a9cde0 ${at(300)}, #8a9a72 ${at(470)}, #6f7a55 ${at(600)}, #7a7a5d ${at(656)}, #2a291f ${at(656)}, #3b3a2e ${at(660)})`;
 }
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', () => setTimeout(fit, 200));
@@ -60,14 +60,24 @@ function enemySvg(e) {
     <circle cx="110" cy="182" r="10" fill="#ffc83a" stroke="#a87a10" stroke-width="2"/>${crown}
   </svg>`;
 }
+// บอสใช้ภาพโกเลม (406×370) ศัตรูธรรมดายังเป็นบูลด็อก SVG ชั่วคราว
+const GOLEM_RATIO = 370 / 406;
 function showEnemy(e) {
   const el = $('enemy');
-  const size = e.boss ? (e.big ? 1.12 : 1) : 0.72;
-  el.style.width = 210 * size + 'px';
-  el.style.height = 270 * size + 'px';
-  el.style.marginLeft = -105 * size + 'px';
-  el.style.top = 650 - 270 * size + 'px';
-  el.innerHTML = enemySvg(e);
+  let w, h, cx;
+  if (e.boss) {
+    w = e.big ? 300 : 270; h = w * GOLEM_RATIO; cx = 258;
+    el.innerHTML = `<img class="boss" src="assets/enemies/golem.png" alt="" style="filter:hue-rotate(${e.hue}deg)">`;
+  } else {
+    w = 210 * 0.72; h = 270 * 0.72; cx = 285;
+    el.innerHTML = enemySvg(e);
+  }
+  el.style.width = w + 'px';
+  el.style.height = h + 'px';
+  el.style.left = cx + 'px';
+  el.style.marginLeft = -w / 2 + 'px';
+  el.style.top = 652 - h + 'px';
+  el.classList.toggle('big', !!e.big);
   el.classList.remove('hit');
   el.classList.add('spawn');
   setTimeout(() => el.classList.remove('spawn'), 300);

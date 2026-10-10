@@ -1,7 +1,7 @@
 :root { --ink:#1d2a44; --gold:#ffc83a; --panel:#16203a; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html, body { margin:0; height:100%; overflow:hidden; }
-html { background:#5d4026; }
+html { background:#3b3a2e; }
 body { background:linear-gradient(#5cc4f2 0 50%, #5d4026 50% 100%); font-family:'Mitr', system-ui, sans-serif; color:#fff; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:manipulation; }
 img { -webkit-user-drag:none; user-select:none; }
 button { font:inherit; color:inherit; }
@@ -10,10 +10,7 @@ button { font:inherit; color:inherit; }
 /* ฉากออกแบบไว้ที่ 390×844 แล้วย่อ/ขยายให้พอดีจอ (ดู fit() ใน main.js) */
 #game { position:absolute; left:0; top:0; width:390px; height:844px; overflow:hidden; transform-origin:0 0; }
 
-.sky { position:absolute; inset:0; background:linear-gradient(#5cc4f2 0%, #9fdcf7 38%, #cdeccf 60%, #7cbf4a 100%); }
-.mtn { position:absolute; left:0; right:0; bottom:22%; width:100%; height:300px; }
-.ground { position:absolute; left:0; right:0; bottom:190px; height:40px; background:#6bbd3a; border-radius:50% 50% 0 0 / 30px 30px 0 0; z-index:1; }
-.dirt { position:absolute; left:0; right:0; bottom:0; height:200px; background:#5d4026; z-index:1; }
+.dirt { position:absolute; left:0; right:0; top:656px; bottom:0; background:#3b3a2e; border-top:4px solid #2a291f; z-index:1; }
 .stroke { -webkit-text-stroke:4px var(--ink); paint-order:stroke fill; }
 
 /* แถบบน */
@@ -64,7 +61,7 @@ button { font:inherit; color:inherit; }
 #enemy svg { width:100%; height:100%; overflow:visible; }
 #enemy.hit { animation:hit .12s; }
 #enemy.spawn { animation:spawn .3s; }
-@keyframes hit { 50% { transform:scale(.95) rotate(-1deg); filter:brightness(1.5); } }
+@keyframes hit { 50% { transform:scale(.96) rotate(-1deg); filter:brightness(1.25); } }
 @keyframes spawn { from { transform:scale(.3); opacity:0; } }
 
 .hero { position:absolute; left:40px; top:490px; width:247px; height:165px; z-index:3; image-rendering:pixelated; filter:drop-shadow(0 4px 3px rgba(0,0,0,.35)); pointer-events:none; }
@@ -300,3 +297,10 @@ button { font:inherit; color:inherit; }
   62%  { transform:translateX(-50%) translateY(0); opacity:1; }
   100% { transform:translateX(-50%) translateY(-34px); opacity:0; }
 }
+
+/* บอสโกเลม */
+#enemy img.boss { width:100%; height:100%; display:block; object-fit:contain; filter:drop-shadow(0 6px 4px rgba(0,0,0,.4)); }
+#enemy.big img.boss { filter:drop-shadow(0 0 10px rgba(255,80,60,.8)) drop-shadow(0 6px 4px rgba(0,0,0,.4)); }
+
+/* ฉากหลัง: ภาพซากปรักหักพัง ชิดล่างที่ระดับพื้น ด้านบนเติมสีฟ้า */
+.scene { position:absolute; left:0; right:0; top:0; height:660px; background:#61aad3 url(assets/scenes/ruins.png) center bottom / auto 620px no-repeat; }
