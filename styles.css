@@ -275,3 +275,8 @@ button { font:inherit; color:inherit; }
 .btn.gagain:disabled { background:#3a4562; color:#7d8bad; box-shadow:none; }
 .confetti i { position:absolute; top:-20px; width:8px; height:12px; animation:fall linear forwards; }
 @keyframes fall { to { transform:translateY(900px) rotate(720deg); } }
+
+/* ปุ่ม + โหมดทดสอบ */
+.pill .plus { width:22px; height:22px; margin-left:auto; border:0; border-radius:50%; background:var(--gold); color:var(--ink); font-size:17px; font-weight:600; line-height:22px; padding:0; cursor:pointer; flex:none; }
+.pill .plus:active { transform:scale(.9); }
+.pill:has(.plus:not([hidden])) { padding-right:3px; gap:4px; }

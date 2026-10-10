@@ -1,4 +1,4 @@
-import { BAL, CATS, GACHA, STAR, SKILLS, HERO, PASSIVES } from './config.js';
+import { BAL, CATS, GACHA, STAR, SKILLS, HERO, PASSIVES, DEV } from './config.js';
 import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
 import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower } from './game.js';
@@ -475,6 +475,22 @@ $('pull1').addEventListener('click', () => doPull(1));
 $('pull10').addEventListener('click', () => doPull(10));
 $('gOk').addEventListener('click', () => ($('gachaShow').hidden = true));
 $('gAgain').addEventListener('click', () => doPull(lastPull));
+
+// ---------- โหมดทดสอบ: รับเหรียญ/เพชรฟรี ----------
+if (DEV.freeCurrency) {
+  $('addGold').hidden = $('addGems').hidden = false;
+  $('addGold').addEventListener('click', () => {
+    const add = Math.max(DEV.minGoldPerClick, state.gold);   // อย่างน้อย 10K หรือเพิ่มเป็นสองเท่า
+    state.gold += add;
+    toast(`+${fmt(add)} เหรียญ (ทดสอบ)`);
+    updateHud(); saveState(state);
+  });
+  $('addGems').addEventListener('click', () => {
+    state.gemsFree += DEV.gemsPerClick;
+    toast(`+${fmt(DEV.gemsPerClick)} เพชร (ทดสอบ)`);
+    updateHud(); updateGacha(); saveState(state);
+  });
+}
 
 // ---------- เปิด/ปิดแผ่น ----------
 function openSheet(id) {

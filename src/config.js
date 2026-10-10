@@ -108,5 +108,8 @@ export const ZONES = [
   { name: 'ป่าหิมะ',             hue: 160, enemies: ['จิ้งจอก', 'หมาป่า', 'หมาป่าหิมะ'],     bosses: ['จิ้งจอกเจ้าเล่ห์', 'หมาป่าหินผา', 'ราชาหมาป่า'] },
 ];
 
+// โหมดทดสอบ: ปุ่ม + รับเหรียญและเพชรฟรี ต้องตั้งเป็น false ก่อนเปิดขายเพชรจริง
+export const DEV = { freeCurrency: true, gemsPerClick: 1000, minGoldPerClick: 10000 };
+
 export const SAVE_KEY = 'cat-assemble-save';
 export const SAVE_VERSION = 2;
