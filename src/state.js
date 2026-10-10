@@ -1,16 +1,21 @@
-import { CATS, SAVE_KEY, SAVE_VERSION } from './config.js';
+import { BAL, CATS, STAR, STARTER, SAVE_KEY, SAVE_VERSION } from './config.js';
 
 export function newState() {
   return {
     v: SAVE_VERSION,
     gold: 0,
-    gems: 0,
+    gemsFree: BAL.gemsStart,
+    gemsPaid: 0,       // เพชรที่ซื้อด้วยเงินจริง (ยังไม่เปิดขาย) แยกไว้ตั้งแต่ตอนนี้
     stage: 1,
     maxStage: 1,
     kills: 0,          // ศัตรูธรรมดาที่ล้มแล้วในด่านนี้
     farming: false,    // แพ้บอสแล้ว วนตีศัตรูธรรมดาจนกว่าจะกด FIGHT
-    heroLv: 1,
-    cats: CATS.map(() => 0),
+    swordLv: 1,
+    speedLv: 0,
+    cats: { [STARTER]: { lv: 1, star: 1, dupes: 0 } },
+    team: [STARTER],
+    pity: 0,           // นับครั้งที่เปิดกาชาตั้งแต่ได้ SSR ล่าสุด
+    pulls: 0,
     skillReadyAt: {},  // id → Date.now() ที่ใช้ได้อีกครั้ง
     skillUntil: {},    // id → Date.now() ที่บัฟหมด
     lastSeen: Date.now(),
@@ -18,35 +23,66 @@ export function newState() {
   };
 }
 
-// แปลงเซฟเวอร์ชันเก่าให้ใช้กับเกมเวอร์ชันปัจจุบันได้
-// และบังคับทุกช่องให้เป็นตัวเลขที่ถูกต้อง: เซฟที่โหลดมาจากข้อความเป็นข้อมูลที่เชื่อไม่ได้
+// เซฟจากข้อความหรือเวอร์ชันเก่าเป็นข้อมูลที่เชื่อไม่ได้: บังคับทุกช่องให้เป็นค่าที่ถูกต้อง
 const num = (v, def, min = 0) => (typeof v === 'number' && isFinite(v) && v >= min ? v : def);
 const int = (v, def, min = 0) => Math.floor(num(v, def, min));
+const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const timeMap = m => {
   const out = {};
-  if (m && typeof m === 'object') for (const c of CATS) if (typeof m[c.id] === 'number' && isFinite(m[c.id])) out[c.id] = m[c.id];
+  for (const c of CATS) if (typeof obj(m)[c.id] === 'number' && isFinite(m[c.id])) out[c.id] = m[c.id];
   return out;
 };
+// ลำดับแมวในเซฟเวอร์ชัน 1 (แบ่งตามธาตุ) → แมวตัวใหม่
+const V1_ORDER = ['blaze', 'frost', 'volt', 'toxin', 'rock', 'gale', 'lumi', 'nox'];
 
 function migrate(data) {
-  const d = data && typeof data === 'object' ? data : {};
-  const st = d.stats && typeof d.stats === 'object' ? d.stats : {};
+  const d = obj(data), st = obj(d.stats);
   const stage = int(d.stage, 1, 1);
-  return {
+  const s = {
     v: SAVE_VERSION,
     gold: num(d.gold, 0),
-    gems: int(d.gems, 0),
+    gemsFree: int(d.gemsFree, 0),
+    gemsPaid: int(d.gemsPaid, 0),
     stage,
     maxStage: Math.max(stage, int(d.maxStage, 1, 1)),
     kills: int(d.kills, 0),
     farming: d.farming === true,
-    heroLv: int(d.heroLv, 1, 1),
-    cats: CATS.map((_, i) => int(Array.isArray(d.cats) ? d.cats[i] : 0, 0)),
+    swordLv: int(d.swordLv, 1, 1),
+    speedLv: Math.min(BAL.speedMaxLevel, int(d.speedLv, 0)),
+    cats: {},
+    team: [],
+    pity: int(d.pity, 0),
+    pulls: int(d.pulls, 0),
     skillReadyAt: timeMap(d.skillReadyAt),
     skillUntil: timeMap(d.skillUntil),
     lastSeen: num(d.lastSeen, Date.now()),
     stats: { taps: int(st.taps, 0), kills: int(st.kills, 0), bosses: int(st.bosses, 0) },
   };
+
+  if (int(d.v, 1) < 2) {
+    // เวอร์ชัน 1: แมวจ้างด้วยเหรียญ เลเวลเดิมยกมาเป็นแมว ★1 และแถมเพชรเริ่มต้น
+    s.swordLv = int(d.heroLv, 1, 1);
+    s.gemsFree = int(d.gems, 0) + BAL.gemsStart;
+    s.skillReadyAt = {}; s.skillUntil = {};
+    if (Array.isArray(d.cats)) d.cats.forEach((lv, i) => {
+      const id = V1_ORDER[i], l = int(lv, 0);
+      if (id && l > 0) s.cats[id] = { lv: l, star: 1, dupes: 0 };
+    });
+  } else {
+    const cats = obj(d.cats);
+    for (const c of CATS) {
+      const x = obj(cats[c.id]);
+      if (!cats[c.id]) continue;
+      s.cats[c.id] = { lv: int(x.lv, 1, 1), star: Math.min(STAR.max, int(x.star, 1, 1)), dupes: int(x.dupes, 0) };
+    }
+  }
+  if (!s.cats[STARTER]) s.cats[STARTER] = { lv: 1, star: 1, dupes: 0 };
+
+  // ทีม: เก็บเฉพาะ id ที่มีจริง ไม่ซ้ำ แล้วเติมแมวที่เหลือจนเต็ม
+  const team = Array.isArray(d.team) ? d.team.filter(id => s.cats[id]) : [];
+  for (const c of CATS) if (s.cats[c.id] && !team.includes(c.id)) team.push(c.id);
+  s.team = [...new Set(team)].slice(0, BAL.teamSize);
+  return s;
 }
 
 export function loadState() {

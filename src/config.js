@@ -13,17 +13,34 @@ export const BAL = {
   bossTime: 30,
   bigBossTime: 45,
 
-  heroCostBase: 10,
-  heroCostGrowth: 1.07,
-  tapPerLevel: 2,
+  // ตัวเรา (แมวนักดาบ)
+  swordCostBase: 10,
+  swordCostGrowth: 1.07,
+  swordPerLevel: 2,
+  swordMileStep: 25,      // ทุก 25 เลเวล ดาเมจดาบ ×2
+  speedCostBase: 50,
+  speedCostGrowth: 1.5,
+  speedBase: 1,           // ฟันอัตโนมัติ ครั้ง/วินาที
+  speedPerLevel: 0.1,
+  speedMaxLevel: 30,
+  tapMaxPerSec: 15,       // แตะนับได้สูงสุดเท่านี้ กันโปรแกรมกดอัตโนมัติ
+
+  // แมวในทีม
   catCostGrowth: 1.075,
-  mileStep: 25,           // ทุก 25 เลเวล ดาเมจ ×2
+  catMileStep: 16,        // ทุก 16 เลเวล DPS ×2
   mileMul: 2,
-  passiveLevel: 25,
+  catPeriod: 1.2,         // วินาทีต่อการยิงหนึ่งครั้ง
+  teamSize: 8,
 
   baseCrit: 0.05,
   critMul: 3,
-  catPeriod: 1.2,         // วินาทีต่อการยิงหนึ่งครั้งของแมวผู้ช่วย
+
+  // เพชร
+  gemsStart: 500,
+  gemsPerBoss: 5,
+  gemsBigBoss: 50,
+  gemsMilestoneEvery: 25,
+  gemsMilestone: 100,
 
   offlineMinSec: 60,
   offlineCapSec: 12 * 3600,
@@ -32,29 +49,42 @@ export const BAL = {
   saveEverySec: 10,
 };
 
-export const HERO = { name: 'CatMaster', img: 'assets/cats/hero.png' };
+export const RARITY = {
+  R:   { dps: 5,  cost: 50,  rate: 0.75, refund: 10,  color: '#7fb2e6' },
+  SR:  { dps: 15, cost: 150, rate: 0.22, refund: 30,  color: '#b583ff' },
+  SSR: { dps: 50, cost: 500, rate: 0.03, refund: 100, color: '#ffc83a' },
+};
 
+export const GACHA = { cost1: 100, cost10: 900, pity: 50 };
+
+// ใช้แมวซ้ำกี่ตัวเพื่ออัปจาก ★1→2, 2→3, 3→4, 4→5
+export const STAR = { dupes: [1, 2, 4, 8], max: 5, skillPerStar: 0.2 };
+
+export const HERO = { name: 'CatMaster', img: 'assets/cats/hero.png' };
+export const STARTER = 'volt';
+
+// img = ชื่อไฟล์ภาพใน assets/cats และ assets/skills
 export const CATS = [
-  { id: 'fire',    name: 'แมวไฟ',       cost: 50,    dps: 5,     color: '#ff6a2a', passive: 'bossDmg',  passiveText: 'ดาเมจใส่บอส +25%' },
-  { id: 'ice',     name: 'แมวน้ำแข็ง',   cost: 600,   dps: 40,    color: '#5ac8ff', passive: 'bossTime', passiveText: 'เวลาสู้บอส +3 วิ' },
-  { id: 'thunder', name: 'แมวสายฟ้า',   cost: 7e3,   dps: 300,   color: '#ffd23a', passive: 'crit',     passiveText: 'โอกาสคริติคอล +3%' },
-  { id: 'poison',  name: 'แมวพิษ',      cost: 85e3,  dps: 2.2e3, color: '#7be04a', passive: 'dot',      passiveText: 'เลือดศัตรูลดต่อเนื่อง 1% ของ DPS' },
-  { id: 'earth',   name: 'แมวดิน',      cost: 1e6,   dps: 16e3,  color: '#c08a52', passive: 'gold',     passiveText: 'เหรียญ +15%' },
-  { id: 'wind',    name: 'แมวลม',       cost: 12e6,  dps: 120e3, color: '#4fe3d6', passive: 'speed',    passiveText: 'แมวทุกตัวตีเร็วขึ้น 10%' },
-  { id: 'light',   name: 'แมวแสง',      cost: 150e6, dps: 900e3, color: '#fff2a0', passive: 'tapDps',   passiveText: 'ดาเมจแตะ +1% ของ DPS รวม' },
-  { id: 'dark',    name: 'แมวมืด',      cost: 2e9,   dps: 7e6,   color: '#a35cff', passive: 'critDmg',  passiveText: 'ดาเมจคริติคอล +50%' },
+  { id: 'volt',  name: 'โวลต์',   img: 'thunder', rarity: 'R',   color: '#ffd23a' },
+  { id: 'toxin', name: 'ท็อกซิน', img: 'poison',  rarity: 'R',   color: '#7be04a' },
+  { id: 'rock',  name: 'ร็อค',    img: 'earth',   rarity: 'R',   color: '#c08a52' },
+  { id: 'blaze', name: 'บลาซ',    img: 'fire',    rarity: 'SR',  color: '#ff6a2a' },
+  { id: 'frost', name: 'ฟรอสต์',  img: 'ice',     rarity: 'SR',  color: '#5ac8ff' },
+  { id: 'gale',  name: 'เกล',     img: 'wind',    rarity: 'SR',  color: '#4fe3d6' },
+  { id: 'lumi',  name: 'ลูมิ',    img: 'light',   rarity: 'SSR', color: '#fff2a0' },
+  { id: 'nox',   name: 'น็อกซ์',  img: 'dark',    rarity: 'SSR', color: '#a35cff' },
 ];
 
-// สกิลผูกกับแมวธาตุเดียวกัน ปลดล็อกเมื่อจ้างแมวตัวนั้น
+// สกิลเฉพาะของแมวแต่ละตัว p = พลังสกิลตามดาว (★1 = 1, +0.2 ต่อดาว)
 export const SKILLS = {
-  fire:    { name: 'ฝนระเบิด',       cd: 120, dur: 0,  desc: 'ดาเมจทันที = ดาเมจแตะ ×60' },
-  ice:     { name: 'แช่แข็ง',        cd: 300, dur: 10, desc: 'หยุดเวลาบอส 10 วิ' },
-  thunder: { name: 'ฟ้าผ่า',         cd: 240, dur: 30, desc: 'โอกาสคริติคอล +30% 30 วิ' },
-  poison:  { name: 'หมอกพิษ',        cd: 480, dur: 20, desc: 'ศัตรูเสียเลือด 0.5%/วิ 20 วิ' },
-  earth:   { name: 'เหมืองทอง',      cd: 360, dur: 30, desc: 'เหรียญ ×2 30 วิ' },
-  wind:    { name: 'พายุอุ้งเท้า',    cd: 300, dur: 30, desc: 'แตะอัตโนมัติ 10 ครั้ง/วิ 30 วิ' },
-  light:   { name: 'แสงศักดิ์สิทธิ์',  cd: 480, dur: 30, desc: 'DPS แมวทุกตัว ×2 30 วิ' },
-  dark:    { name: 'คืนจันทร์ดับ',    cd: 600, dur: 30, desc: 'ดาเมจคริติคอล ×3 30 วิ' },
+  blaze: { name: 'ฟันเพลิง',        cd: 120, dur: 0,  desc: p => `ดาเมจทันที = ดาเมจดาบ ×${Math.round(60 * p)}` },
+  frost: { name: 'แช่แข็ง',         cd: 300, dur: 10, desc: p => `หยุดเวลาบอส ${Math.round(10 * p)} วิ` },
+  volt:  { name: 'ฟ้าผ่า',          cd: 240, dur: 30, desc: p => `โอกาสคริติคอล +${Math.round(30 * p)}% 30 วิ` },
+  toxin: { name: 'หมอกพิษ',         cd: 480, dur: 20, desc: p => `ศัตรูเสียเลือด ${(0.5 * p).toFixed(1)}%/วิ 20 วิ` },
+  rock:  { name: 'เหมืองทอง',       cd: 360, dur: 30, desc: p => `เหรียญ ×${(1 + p).toFixed(1)} 30 วิ` },
+  gale:  { name: 'ลมเร่ง',          cd: 300, dur: 30, desc: p => `ตัวเราฟันเร็ว ×${(1 + 2 * p).toFixed(1)} 30 วิ` },
+  lumi:  { name: 'แสงศักดิ์สิทธิ์',   cd: 480, dur: 30, desc: p => `DPS แมวทุกตัว ×${(1 + p).toFixed(1)} 30 วิ` },
+  nox:   { name: 'คืนจันทร์ดับ',     cd: 600, dur: 30, desc: p => `ดาเมจคริติคอล ×${(1 + 2 * p).toFixed(1)} 30 วิ` },
 };
 
 // ทุก 50 ด่านเปลี่ยนโซน ครบแล้ววนใหม่
@@ -66,4 +96,4 @@ export const ZONES = [
 ];
 
 export const SAVE_KEY = 'cat-assemble-save';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;

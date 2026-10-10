@@ -1,19 +1,26 @@
-import { BAL, CATS, SKILLS, HERO } from './config.js';
+import { BAL, CATS, GACHA, STAR, SKILLS, HERO } from './config.js';
 import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
-import { Game, heroTap, catDpsAt, nextMile, isBigBoss } from './game.js';
+import { Game, catById, swordDmgAt, nextMile, isBigBoss, skillPower } from './game.js';
 
 const $ = id => document.getElementById(id);
 const gameEl = $('game'), fx = $('fx');
 let scale = 1;
 
-// ---------- ย่อ/ขยายฉาก 390×844 ให้พอดีจอ ----------
+// ---------- ย่อ/ขยายฉาก 390×844 ให้พอดีจอ เว้นรอยบาก/Dynamic Island และขอบล่าง ----------
+const probe = document.createElement('div');
+probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
+document.body.appendChild(probe);
 function fit() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const cs = getComputedStyle(probe);
+  const top = parseFloat(cs.paddingTop) || 0, bottom = parseFloat(cs.paddingBottom) || 0;
+  const w = window.innerWidth, h = window.innerHeight - top - bottom;
   scale = Math.min(w / 390, h / 844);
-  gameEl.style.transform = `translate(${-195 * scale}px, ${-422 * scale}px) scale(${scale})`;
+  const x = (w - 390 * scale) / 2, y = top + (h - 844 * scale) / 2;
+  gameEl.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
 }
 window.addEventListener('resize', fit);
+window.addEventListener('orientationchange', () => setTimeout(fit, 200));
 fit();
 
 // พิกัดกลางขององค์ประกอบ ในระบบพิกัดของฉาก
@@ -29,7 +36,7 @@ function toScene(clientX, clientY) {
 // ---------- ศัตรู (ภาพชั่วคราว วาดด้วย SVG) ----------
 function enemySvg(e) {
   const crown = e.big
-    ? '<path d="M70 8 L80 34 L95 14 L110 34 L125 14 L140 34 L150 8 L150 40 L70 40Z" fill="#ffc83a" stroke="#a87a10" stroke-width="3" transform="translate(-0 -10)"/>'
+    ? '<path d="M70 -2 L80 24 L95 4 L110 24 L125 4 L140 24 L150 -2 L150 30 L70 30Z" fill="#ffc83a" stroke="#a87a10" stroke-width="3"/>'
     : '';
   return `<svg viewBox="0 0 220 280" style="filter:hue-rotate(${e.hue}deg)">
     <ellipse cx="110" cy="268" rx="90" ry="10" fill="rgba(0,0,0,.25)"/>
@@ -66,24 +73,33 @@ function showEnemy(e) {
 
 // ---------- เอฟเฟกต์ ----------
 let fxCount = 0;
+function addFx(el, ms) {
+  if (fxCount > 45) return false;
+  fx.appendChild(el); fxCount++;
+  setTimeout(() => { el.remove(); fxCount--; }, ms);
+  return true;
+}
 function popText(text, x, y, cls) {
-  if (fxCount > 40) return;
   const d = document.createElement('div');
   d.className = 'dmg ' + (cls || '');
   d.textContent = text;
   d.style.left = (x - 24 + Math.random() * 20) + 'px';
   d.style.top = (y - 20) + 'px';
-  fx.appendChild(d); fxCount++;
-  setTimeout(() => { d.remove(); fxCount--; }, 800);
+  addFx(d, 800);
 }
 function boom(x, y, color) {
-  if (fxCount > 40) return;
   const b = document.createElement('div');
   b.className = 'boom';
   b.style.left = x + 'px'; b.style.top = y + 'px';
   b.style.background = `radial-gradient(circle, #fff 0%, ${color} 40%, transparent 70%)`;
-  fx.appendChild(b); fxCount++;
-  setTimeout(() => { b.remove(); fxCount--; }, 300);
+  addFx(b, 300);
+}
+function slashFx(x, y, crit) {
+  const s = document.createElement('div');
+  s.className = 'slashfx' + (crit ? ' crit' : '');
+  s.style.left = x + 'px'; s.style.top = y + 'px';
+  s.style.setProperty('--r', (-60 + Math.random() * 60) + 'deg');
+  addFx(s, 180);
 }
 function flash(color) {
   const f = document.createElement('div');
@@ -102,11 +118,63 @@ function enemyPoint() {
   return { x: c.x + Math.random() * 70 - 35, y: c.y + Math.random() * 70 - 50 };
 }
 
+// ---------- แมวบนหน้าผา: ช่อง 0-3 ซ้าย, 4-7 ขวา ----------
+const LEDGE_Y = [344, 438, 532, 626];
+const slots = Array.from({ length: BAL.teamSize }, (_, i) => {
+  const right = i >= 4, row = i % 4;
+  const el = document.createElement('div');
+  el.className = 'cat empty ' + (right ? 'r' : 'l');
+  el.style[right ? 'right' : 'left'] = (row % 2 ? 10 : 4) + 'px';
+  el.style.top = LEDGE_Y[row] + 'px';
+  el.innerHTML = '<div class="bar"><i></i></div><img alt=""><span class="lvtag"></span>';
+  $('cats').appendChild(el);
+  return { el, img: el.querySelector('img'), bar: el.querySelector('.bar i'), tag: el.querySelector('.lvtag'), id: null, charge: Math.random() };
+});
+function layoutTeam() {
+  slots.forEach((sl, i) => {
+    const id = state.team[i] || null;
+    if (sl.id !== id) {
+      sl.id = id;
+      sl.el.classList.toggle('empty', !id);
+      if (id) sl.img.src = `assets/cats/${catById(id).img}.png`;
+    }
+  });
+  buildSkillBar();
+}
+
+// shots > 1 เมื่อชดเชยเฟรมที่ช้า: ยิงลูกเดียวแต่ดาเมจรวมทุกนัด
+function shoot(sl, shots = 1) {
+  const from = center(sl.el), to = enemyPoint(), col = catById(sl.id).color;
+  const dmg = game.catDps(sl.id) * BAL.catPeriod * shots;
+  sl.el.classList.add('atk');
+  setTimeout(() => sl.el.classList.remove('atk'), 120);
+  const s = document.createElement('div');
+  s.className = 'shot';
+  s.style.background = col; s.style.boxShadow = `0 0 12px 4px ${col}`;
+  if (!addFx(s, 300)) { lastHit = to; game.damage(dmg, 'cat'); return; }
+  s.animate([{ transform: `translate(${from.x}px,${from.y}px)` }, { transform: `translate(${to.x}px,${to.y}px)` }], { duration: 260, easing: 'ease-in' })
+    .onfinish = () => { boom(to.x, to.y, col); lastHit = to; game.damage(dmg, 'cat'); };
+}
+
+// ---------- ตัวเรา: ฟันอัตโนมัติ + แตะเพื่อฟันเพิ่ม ----------
+let lastHit = null, heroCharge = 0;
+function heroSlash(p, source) {
+  lastHit = p;
+  if (source === 'tap') { if (!game.tap()) { lastHit = null; return; } }
+  else game.slash('auto');
+  const h = $('hero');
+  h.classList.remove('slash'); void h.offsetWidth; h.classList.add('slash');
+  setTimeout(() => h.classList.remove('slash'), 90);
+}
+$('battle').addEventListener('pointerdown', e => heroSlash(toScene(e.clientX, e.clientY), 'tap'));
+$('fight').addEventListener('click', () => {
+  if (game.challengeBoss()) { toast('ท้าบอสอีกครั้ง!'); return; }
+  heroSlash(enemyPoint(), 'tap');
+});
+
 // ---------- เริ่มเกม ----------
 let state = loadState() || newState();
-let lastHit = null;   // จุดที่จะเด้งตัวเลขของการโจมตีครั้งถัดไป
 let game;
-
 function startGame(s) {
   state = s;
   game = new Game(state, {
@@ -115,6 +183,7 @@ function startGame(s) {
       const p = lastHit || enemyPoint();
       lastHit = null;
       if (source === 'dot') return popText(fmt(amount), p.x, p.y, 'cat');
+      if (source === 'tap' || source === 'auto') slashFx(p.x, p.y, crit);
       popText(fmt(amount) + (crit ? '!' : ''), p.x, p.y, crit ? 'crit' : source === 'cat' ? 'cat' : '');
       const el = $('enemy');
       el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
@@ -122,114 +191,64 @@ function startGame(s) {
     onKill(e, gold, gems) {
       const c = center($('enemy'));
       popText('+' + fmt(gold), c.x, c.y - 40, 'gold');
-      if (gems) toast(`ได้เพชร ${gems} เม็ด`);
+      if (gems) popText('+' + gems + ' เพชร', c.x, c.y - 70, 'gold');
     },
     onStage(stage) {
       toast(isBigBoss(stage - 1) ? `ล้มบอสใหญ่! ไปด่าน ${stage}` : `ผ่านด่าน! ไปด่าน ${stage}`);
       saveState(state);
     },
-    onBossFail() {
-      toast('บอสหนีไปแล้ว! อัปเกรดแล้วกด FIGHT เพื่อท้าใหม่', 2500);
-    },
-    onHire(i) {
-      toast(`${CATS[i].name} เข้าทีมแล้ว! ปลดล็อกสกิล${SKILLS[CATS[i].id].name}`, 2000);
-      catEls[i].el.classList.remove('locked');
-    },
-    onSkill(id) {
-      flash(CATS.find(c => c.id === id).color);
-      toast(`${SKILLS[id].name}!`);
-    },
+    onBossFail() { toast('บอสหนีไปแล้ว! อัปเกรดแล้วกด FIGHT เพื่อท้าใหม่', 2500); },
+    onNewCat() { layoutTeam(); },
+    onSkill(id) { flash(catById(id).color); toast(`${SKILLS[id].name}!`); },
   });
-  catEls.forEach((c, i) => c.el.classList.toggle('locked', state.cats[i] === 0));
-  updateHud(true);
+  layoutTeam();
+  updateHud();
 }
 
-// ---------- แมวผู้ช่วยบนหน้าผา ----------
-const LEDGE_Y = [344, 438, 532, 626];
-const catEls = CATS.map((c, i) => {
-  const right = i >= 4, row = i % 4;
-  const el = document.createElement('div');
-  el.className = 'cat ' + (right ? 'r' : 'l');
-  el.style[right ? 'right' : 'left'] = (row % 2 ? 10 : 4) + 'px';
-  el.style.top = LEDGE_Y[row] + 'px';
-  el.innerHTML = `<div class="bar"><i></i></div><img src="assets/cats/${c.id}.png" alt=""><span class="lvtag"></span>`;
-  $('cats').appendChild(el);
-  return { el, bar: el.querySelector('.bar i'), tag: el.querySelector('.lvtag'), charge: Math.random() };
-});
-
-// shots > 1 เมื่อชดเชยเฟรมที่ช้า: ยิงลูกเดียวแต่ดาเมจรวมทุกนัด
-function shoot(i, shots = 1) {
-  const from = center(catEls[i].el), to = enemyPoint();
-  const col = CATS[i].color;
-  const s = document.createElement('div');
-  s.className = 'shot';
-  s.style.background = col; s.style.boxShadow = `0 0 12px 4px ${col}`;
-  fx.appendChild(s);
-  catEls[i].el.classList.add('atk');
-  setTimeout(() => catEls[i].el.classList.remove('atk'), 120);
-  const dmg = game.catDps(i) * game.catPeriod() * shots;
-  s.animate([{ transform: `translate(${from.x}px,${from.y}px)` }, { transform: `translate(${to.x}px,${to.y}px)` }], { duration: 260, easing: 'ease-in' })
-    .onfinish = () => {
-      s.remove();
-      boom(to.x, to.y, col);
-      lastHit = to;
-      game.damage(dmg, 'cat');
-    };
-}
-
-// ---------- แตะ ----------
-function doTap(x, y) {
-  lastHit = { x, y };
-  boom(x, y, '#ffb300');
-  game.tap();
-  const h = $('hero');
-  h.classList.remove('atk'); void h.offsetWidth; h.classList.add('atk');
-  setTimeout(() => h.classList.remove('atk'), 80);
-}
-$('battle').addEventListener('pointerdown', e => {
-  const p = toScene(e.clientX, e.clientY);
-  doTap(p.x, p.y);
-});
-$('fight').addEventListener('click', () => {
-  if (game.challengeBoss()) { toast('ท้าบอสอีกครั้ง!'); return; }
-  const p = enemyPoint();
-  doTap(p.x, p.y);
-});
-
-// ---------- สกิล ----------
-const skillEls = CATS.map(c => {
-  const b = document.createElement('button');
-  b.className = 'sk';
-  b.setAttribute('aria-label', 'สกิล' + SKILLS[c.id].name);
-  b.innerHTML = `<img src="assets/skills/${c.id}.png" alt=""><div class="cd"></div><span class="t"></span>`;
-  b.addEventListener('click', () => {
-    const st = game.skillState(c.id);
-    if (st.locked) return toast(`จ้าง${c.name}ก่อนเพื่อปลดล็อก: ${SKILLS[c.id].desc}`, 2000);
-    if (!st.ready) return toast(`${SKILLS[c.id].name} พร้อมใน ${fmtTime(st.left)}`);
-    game.useSkill(c.id);
-  });
-  $('skills').appendChild(b);
-  return { b, ov: b.querySelector('.cd'), t: b.querySelector('.t') };
-});
-function updateSkills() {
-  const now = Date.now();
-  CATS.forEach((c, i) => {
-    const st = game.skillState(c.id, now), el = skillEls[i];
-    el.b.classList.toggle('locked', st.locked);
-    el.b.classList.toggle('on', !st.locked && st.activeLeft > 0);
-    el.b.classList.toggle('ready', !st.locked && st.ready);
-    el.ov.style.setProperty('--p', st.locked ? '0%' : (st.frac * 100) + '%');
-    el.t.textContent = st.locked ? '' : st.activeLeft > 0 ? Math.ceil(st.activeLeft) + 'วิ' : st.ready ? '' : shortTime(st.left);
+// ---------- แถบสกิล: ตามช่องในทีม ----------
+let skillEls = [];
+function buildSkillBar() {
+  const bar = $('skills');
+  bar.innerHTML = '';
+  skillEls = slots.map((sl, i) => {
+    const id = state.team[i];
+    const b = document.createElement('button');
+    b.className = 'sk' + (id ? '' : ' empty');
+    if (id) {
+      b.setAttribute('aria-label', 'สกิล' + SKILLS[id].name);
+      b.innerHTML = `<img src="assets/skills/${catById(id).img}.png" alt=""><div class="cd"></div><span class="t"></span>`;
+      b.addEventListener('click', () => {
+        const st = game.skillState(id);
+        if (!st.ready) return toast(`${SKILLS[id].name} พร้อมใน ${fmtTime(st.left)}`);
+        game.useSkill(id);
+      });
+    } else {
+      b.innerHTML = '<img alt="">';
+      b.setAttribute('aria-hidden', 'true');
+    }
+    bar.appendChild(b);
+    return id ? { id, b, ov: b.querySelector('.cd'), t: b.querySelector('.t') } : null;
   });
 }
 const shortTime = s => s >= 60 ? Math.ceil(s / 60) + 'น.' : Math.ceil(s) + 'วิ';
+function updateSkills() {
+  const now = Date.now();
+  for (const el of skillEls) {
+    if (!el) continue;
+    const st = game.skillState(el.id, now);
+    el.b.classList.toggle('on', st.activeLeft > 0);
+    el.b.classList.toggle('ready', st.ready);
+    el.ov.style.setProperty('--p', (st.frac * 100) + '%');
+    el.t.textContent = st.activeLeft > 0 ? Math.ceil(st.activeLeft) + 'วิ' : st.ready ? '' : shortTime(st.left);
+  }
+}
 
 // ---------- HUD ----------
-function updateHud(force) {
+function updateHud() {
   const s = state, e = game.enemy;
   $('gold').textContent = fmt(s.gold);
-  $('gems').textContent = fmt(s.gems);
-  $('heroLv').textContent = s.heroLv;
+  $('gems').textContent = fmt(game.gems());
+  $('heroLv').textContent = s.swordLv;
   $('s0').textContent = s.stage > 1 ? s.stage - 1 : '';
   $('s1').textContent = s.stage;
   $('s2').textContent = s.stage + 1;
@@ -237,71 +256,104 @@ function updateHud(force) {
   $('ename').textContent = e.name;
   $('hptxt').textContent = fmt(Math.max(0, e.hp)) + ' HP';
   $('hpbar').style.width = Math.max(0, e.hp / e.maxHp * 100) + '%';
-  $('dps').textContent = 'DPS ' + fmt(game.totalDps());
+  $('dps').textContent = 'DPS ' + fmt(game.totalDps() + game.heroDps());
   const wave = $('wave');
   if (e.boss) {
-    wave.textContent = (game.active('ice') ? '❄ ' : '⏱ ') + Math.max(0, game.bossLeft).toFixed(1) + ' วิ';
+    wave.textContent = (game.active('frost') ? '❄ ' : '⏱ ') + Math.max(0, game.bossLeft).toFixed(1) + ' วิ';
     wave.classList.toggle('hot', game.bossLeft < 10);
   } else {
     wave.textContent = s.farming ? 'ฟาร์มเหรียญ · กด FIGHT' : `ศัตรู ${s.kills + 1}/${BAL.enemiesPerStage}`;
     wave.classList.remove('hot');
   }
   $('fight').classList.toggle('pulse', s.farming);
-  catEls.forEach((c, i) => { c.tag.textContent = s.cats[i] ? 'Lv ' + s.cats[i] : fmt(CATS[i].cost, true); });
-  $('heroBadge').classList.toggle('on', canAffordSomething());
+  slots.forEach(sl => { if (sl.id) sl.tag.textContent = 'Lv ' + s.cats[sl.id].lv; });
+  $('heroBadge').classList.toggle('on', canUpgradeSomething());
+  $('gachaBadge').classList.toggle('on', game.gems() >= GACHA.cost1);
 }
-function canAffordSomething() {
-  if (game.heroQuote(1).cost <= state.gold) return true;
-  return CATS.some((_, i) => game.catQuote(i, 1).cost <= state.gold);
+function canUpgradeSomething() {
+  if (game.quote('sword', 1).cost <= state.gold || game.quote('speed', 1).cost <= state.gold) return true;
+  return Object.keys(state.cats).some(id => game.quote('cat', 1, id).cost <= state.gold || game.canStarUp(id));
 }
 
-// ---------- แผ่น Heroes ----------
+// ---------- แผ่นทีมแมว ----------
 let buyMode = 1;
-const rows = [];
+let rows = [];
+const starsHtml = n => `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(STAR.max - n)}</span></span>`;
 function buildHeroList() {
   const list = $('heroList');
   list.innerHTML = '';
-  const add = (key, img) => {
+  rows = [];
+  const add = (key, img, cls = '') => {
     const r = document.createElement('div');
-    r.className = 'row';
-    r.innerHTML = `<div class="pic"><img src="${img}" alt=""></div><div class="mid"><div class="nm"></div><div class="sub"></div></div><button class="buy" data-key="${key}"><b></b><span><img src="assets/ui/coin.png" alt=""><em></em></span></button>`;
+    r.className = 'row ' + cls;
+    r.innerHTML = `<div class="pic"><img src="${img}" alt=""></div><div class="mid"><div class="nm"></div><div class="sub"></div></div>` +
+      (cls === 'unowned' ? '' : `<button class="buy" data-key="${key}"><b></b><span><img src="assets/ui/coin.png" alt=""><em></em></span></button>`);
     list.appendChild(r);
     rows.push({ key, r, nm: r.querySelector('.nm'), sub: r.querySelector('.sub'), btn: r.querySelector('.buy'), label: r.querySelector('.buy b'), cost: r.querySelector('.buy em') });
   };
-  add('hero', HERO.img);
-  CATS.forEach((c, i) => add(String(i), `assets/cats/${c.id}.png`));
+  const sect = t => { const h = document.createElement('div'); h.className = 'sect'; h.textContent = t; list.appendChild(h); };
+  sect('ตัวเรา');
+  add('sword', HERO.img);
+  add('speed', HERO.img);
+  sect('แมวในทีม');
+  state.team.forEach(id => add('cat:' + id, `assets/cats/${catById(id).img}.png`));
+  const missing = CATS.filter(c => !state.cats[c.id]);
+  if (missing.length) {
+    sect('ยังไม่มี · หาได้จากกาชา');
+    missing.forEach(c => add('none:' + c.id, `assets/cats/${c.img}.png`, 'unowned'));
+  }
 }
+function setHtml(el, html) { if (el.innerHTML !== html) el.innerHTML = html; }
 function updateHeroList() {
+  const s = state;
   for (const row of rows) {
+    const [kind, id] = row.key.split(':');
     let q, nm, sub, label;
-    if (row.key === 'hero') {
-      const lv = state.heroLv;
-      q = game.heroQuote(buyMode);
-      nm = `${HERO.name}<small>Lv ${lv}</small>`;
-      sub = `ดาเมจแตะ ${fmt(game.tapDamage())} · ต่อเลเวล +${fmt(heroTap(lv + 1) - heroTap(lv))}<br><span class="p">×2 ที่ Lv ${nextMile(lv)} · คริติคอล ${Math.round(game.critChance() * 100)}%</span>`;
+    if (kind === 'sword') {
+      q = game.quote('sword', buyMode);
+      nm = `พลังดาบ<small>Lv ${s.swordLv}</small>`;
+      sub = `ดาเมจต่อการฟัน ${fmt(game.slashDamage())} · ต่อเลเวล +${fmt(swordDmgAt(s.swordLv + 1) - swordDmgAt(s.swordLv))}<br><span class="p">×2 ที่ Lv ${nextMile(s.swordLv, BAL.swordMileStep)} · คริติคอล ${Math.round(game.critChance() * 100)}%</span>`;
+      label = `อัป ×${q.n}`;
+    } else if (kind === 'speed') {
+      q = game.quote('speed', buyMode);
+      const rate = BAL.speedBase + BAL.speedPerLevel * s.speedLv;
+      nm = `ความเร็วดาบ<small>Lv ${s.speedLv}/${BAL.speedMaxLevel}</small>`;
+      sub = `ฟันอัตโนมัติ ${rate.toFixed(1)} ครั้ง/วิ<br><span class="p">แตะจอเพื่อฟันเพิ่มได้สูงสุด ${BAL.tapMaxPerSec} ครั้ง/วิ</span>`;
+      label = q.maxed ? 'สูงสุด' : `อัป ×${q.n}`;
+    } else if (kind === 'cat') {
+      const c = catById(id), o = s.cats[id];
+      q = game.quote('cat', buyMode, id);
+      const need = game.starCost(id);
+      const starBtn = need === null ? '' :
+        `<button class="starup ${o.dupes >= need ? 'ok' : ''}" data-star="${id}">อัปดาว ${o.dupes}/${need}</button>`;
+      nm = `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span> <small>Lv ${o.lv}</small>`;
+      sub = `${starsHtml(o.star)}${starBtn}<br>DPS ${fmt(game.catDps(id))} · ${SKILLS[id].name}: ${SKILLS[id].desc(skillPower(o.star))}`;
       label = `อัป ×${q.n}`;
     } else {
-      const i = +row.key, c = CATS[i], lv = state.cats[i];
-      q = game.catQuote(i, buyMode);
-      const passiveOn = lv >= BAL.passiveLevel;
-      nm = `${c.name}<small>${lv ? 'Lv ' + lv : 'ยังไม่จ้าง'}</small>`;
-      sub = (lv ? `DPS ${fmt(game.catDps(i))} · ` : '') + `+${fmt(catDpsAt(i, lv + 1) - catDpsAt(i, lv))} DPS/เลเวล` +
-        `<br><span class="p ${passiveOn ? 'on' : ''}">${passiveOn ? '✓ ' : `Lv ${BAL.passiveLevel}: `}${c.passiveText}</span>`;
-      label = lv ? `อัป ×${q.n}` : 'จ้าง';
-      row.r.classList.toggle('locked', !lv);
+      const c = catById(id);
+      setHtml(row.nm, `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span>`);
+      setHtml(row.sub, `<span class="tag">${SKILLS[id].name}: ${SKILLS[id].desc(1)}</span>`);
+      continue;
     }
-    if (row.nm.innerHTML !== nm) row.nm.innerHTML = nm;
-    if (row.sub.innerHTML !== sub) row.sub.innerHTML = sub;
+    setHtml(row.nm, nm);
+    setHtml(row.sub, sub);
     row.label.textContent = label;
-    row.cost.textContent = fmt(q.cost, true);
-    row.btn.classList.toggle('no', q.cost > state.gold);
+    row.cost.textContent = q.maxed ? '-' : fmt(q.cost, true);
+    row.btn.classList.toggle('no', q.maxed || q.cost > s.gold);
   }
 }
 $('heroList').addEventListener('click', e => {
+  const star = e.target.closest('[data-star]');
+  if (star) {
+    const id = star.dataset.star;
+    if (game.starUp(id)) { toast(`${catById(id).name} ★${state.cats[id].star}!`); saveState(state); }
+    else toast(`ต้องได้${catById(id).name}ซ้ำอีก ${game.starCost(id) - state.cats[id].dupes} ตัว`);
+    updateHeroList(); return;
+  }
   const b = e.target.closest('.buy');
   if (!b) return;
-  const ok = b.dataset.key === 'hero' ? game.buyHero(buyMode) : game.buyCat(+b.dataset.key, buyMode);
-  if (!ok) toast('เหรียญไม่พอ');
+  const [kind, id] = b.dataset.key.split(':');
+  if (!game.buy(kind, buyMode, id)) toast(kind === 'speed' && state.speedLv >= BAL.speedMaxLevel ? 'ความเร็วดาบเต็มแล้ว' : 'เหรียญไม่พอ');
   updateHeroList(); updateHud();
 });
 $('modes').addEventListener('click', e => {
@@ -312,15 +364,54 @@ $('modes').addEventListener('click', e => {
   updateHeroList();
 });
 
+// ---------- กาชา ----------
+function buildBanner() {
+  const order = ['SSR', 'SR', 'R'];
+  $('banner').innerHTML = [...CATS].sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity)).map(c => {
+    const o = state.cats[c.id];
+    return `<div class="bcat ${c.rarity}"><span class="rar ${c.rarity}">${c.rarity}</span>${o ? `<span class="own">★${o.star}</span>` : ''}<img src="assets/cats/${c.img}.png" alt=""><div class="nm">${c.name}</div></div>`;
+  }).join('');
+}
+function updateGacha() {
+  const g = game.gems();
+  $('gGems').textContent = fmt(g);
+  $('pityText').textContent = `อีก ${GACHA.pity - state.pity} ครั้งการันตี SSR`;
+  $('pull1').disabled = g < GACHA.cost1;
+  $('pull10').disabled = g < GACHA.cost10;
+}
+function doPull(n) {
+  const res = game.pull(n);
+  if (!res) return toast('เพชรไม่พอ');
+  saveState(state);
+  const cards = $('cards');
+  cards.className = 'cards' + (n === 1 ? ' one' : '');
+  cards.innerHTML = res.map((r, i) => {
+    const c = catById(r.id);
+    const note = r.isNew ? '<div class="note new">ใหม่!</div>'
+      : r.refund ? `<div class="note">★5 แล้ว +${r.refund} เพชร</div>`
+      : `<div class="note${r.canStar ? ' new' : ''}">ซ้ำ +1${r.canStar ? ' อัปดาวได้' : ''}</div>`;
+    return `<div class="card ${r.rarity}" style="animation-delay:${i * 0.12}s"><span class="rar ${r.rarity}">${r.rarity}</span><img src="assets/cats/${c.img}.png" alt=""><div class="nm">${c.name}</div>${note}</div>`;
+  }).join('');
+  $('gachaResult').hidden = false;
+  if (res.some(r => r.rarity === 'SSR')) flash('#ffc83a');
+  buildBanner(); updateGacha(); buildHeroList(); updateHud();
+}
+$('pull1').addEventListener('click', () => doPull(1));
+$('pull10').addEventListener('click', () => doPull(10));
+$('resultOk').addEventListener('click', () => ($('gachaResult').hidden = true));
+
 // ---------- เปิด/ปิดแผ่น ----------
 function openSheet(id) {
   document.querySelectorAll('.sheet').forEach(s => s.classList.toggle('open', s.id === id));
-  if (id === 'heroesSheet') updateHeroList();
+  if (id === 'heroesSheet') { buildHeroList(); updateHeroList(); }
+  if (id === 'gachaSheet') { buildBanner(); updateGacha(); }
   if (id === 'settingsSheet') refreshSettings();
 }
+function toggleSheet(id) { $(id).classList.contains('open') ? closeSheets() : openSheet(id); }
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); }
-$('openHeroes').addEventListener('click', () => $('heroesSheet').classList.contains('open') ? closeSheets() : openSheet('heroesSheet'));
-$('openSettings').addEventListener('click', () => $('settingsSheet').classList.contains('open') ? closeSheets() : openSheet('settingsSheet'));
+$('openHeroes').addEventListener('click', () => toggleSheet('heroesSheet'));
+$('openGacha').addEventListener('click', () => toggleSheet('gachaSheet'));
+$('openSettings').addEventListener('click', () => toggleSheet('settingsSheet'));
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
 
 // ---------- Setting ----------
@@ -328,7 +419,7 @@ function refreshSettings() {
   $('exportText').value = exportSave(state);
   $('importErr').textContent = '';
   const st = state.stats;
-  $('statsText').textContent = `ด่านสูงสุด ${state.maxStage} · แตะ ${fmt(st.taps)} ครั้ง\nล้มศัตรู ${fmt(st.kills)} ตัว · ล้มบอส ${fmt(st.bosses)} ตัว`;
+  $('statsText').textContent = `ด่านสูงสุด ${state.maxStage} · แตะ ${fmt(st.taps)} ครั้ง\nล้มศัตรู ${fmt(st.kills)} ตัว · ล้มบอส ${fmt(st.bosses)} ตัว\nเปิดกาชา ${fmt(state.pulls)} ครั้ง`;
 }
 $('copyBtn').addEventListener('click', async () => {
   const t = $('exportText');
@@ -340,7 +431,7 @@ $('importBtn').addEventListener('click', () => {
     const s = importSave($('importText').value);
     if (!confirm(`โหลดเซฟด่าน ${s.stage} แทนความคืบหน้าปัจจุบันไหม?`)) return;
     startGame(s); saveState(state); closeSheets(); toast('โหลดเซฟแล้ว');
-  } catch (err) {
+  } catch {
     $('importErr').textContent = 'ข้อความเซฟไม่ถูกต้อง ลองคัดลอกใหม่ทั้งหมด';
   }
 });
@@ -378,16 +469,16 @@ function checkOffline(sinceMs) {
   const sec = (Date.now() - sinceMs) / 1000;
   offAmount = game.offlineGold(sec);
   if (offAmount <= 0) return;
-  $('offText').textContent = `ระหว่างที่ไม่อยู่ ${fmtTime(Math.min(sec, BAL.offlineCapSec))} แมวช่วยกันหาเหรียญได้`;
+  $('offText').textContent = `ระหว่างที่ไม่อยู่ ${fmtTime(Math.min(sec, BAL.offlineCapSec))} ทีมแมวช่วยกันหาเหรียญได้`;
   $('offGold').textContent = fmt(offAmount);
   $('offCost').textContent = BAL.offlineX2Gems;
-  $('offX2').disabled = state.gems < BAL.offlineX2Gems;
+  $('offX2').disabled = game.gems() < BAL.offlineX2Gems;
   $('offline').hidden = false;
 }
 $('offTake').addEventListener('click', () => { state.gold += offAmount; $('offline').hidden = true; saveState(state); });
 $('offX2').addEventListener('click', () => {
-  if (state.gems < BAL.offlineX2Gems) return;
-  state.gems -= BAL.offlineX2Gems; state.gold += offAmount * 2;
+  if (!game.spendGems(BAL.offlineX2Gems)) return;
+  state.gold += offAmount * 2;
   $('offline').hidden = true; saveState(state);
 });
 
@@ -401,41 +492,37 @@ window.addEventListener('pagehide', () => saveState(state));
 setInterval(() => saveState(state), BAL.saveEverySec * 1000);
 
 // ---------- ลูปหลัก ----------
-// นับตามเวลาจริง: ถ้าเฟรมมาช้า (เครื่องช้า/แท็บอยู่เบื้องหลัง) จะชดเชยให้สูงสุด 5 วิ
-// ช่วงที่หายไปนานกว่านั้นนับเป็นเวลาออฟไลน์แทน
-let last = performance.now(), hudAcc = 0, autoTapAcc = 0;
+// นับตามเวลาจริง: ถ้าเฟรมมาช้าจะชดเชยให้สูงสุด 5 วิ ช่วงที่หายไปนานกว่านั้นนับเป็นเวลาออฟไลน์แทน
+let last = performance.now(), hudAcc = 0;
 function loop(now) {
   const dt = Math.min(5, (now - last) / 1000);
   last = now;
   game.tick(dt);
-  const period = game.catPeriod();
-  CATS.forEach((_, i) => {
-    const c = catEls[i];
-    if (!state.cats[i]) return;
-    c.charge += dt / period;
-    const shots = Math.floor(c.charge);
-    if (shots > 0) { c.charge -= shots; shoot(i, shots); }
-    c.bar.style.width = (c.charge * 100) + '%';
-  });
-  if (game.active('wind')) {
-    autoTapAcc += dt * 10;
-    let n = Math.min(20, Math.floor(autoTapAcc));
-    autoTapAcc -= Math.floor(autoTapAcc);
-    while (n-- > 0) { const p = enemyPoint(); doTap(p.x, p.y); }
+  for (const sl of slots) {
+    if (!sl.id) continue;
+    sl.charge += dt / BAL.catPeriod;
+    const shots = Math.floor(sl.charge);
+    if (shots > 0) { sl.charge -= shots; shoot(sl, shots); }
+    sl.bar.style.width = (sl.charge * 100) + '%';
   }
+  heroCharge += dt * game.autoRate();
+  let n = Math.min(20, Math.floor(heroCharge));
+  heroCharge -= Math.floor(heroCharge);
+  while (n-- > 0) heroSlash(enemyPoint(), 'auto');
+  $('heroBar').firstElementChild.style.width = (heroCharge * 100) + '%';
   hudAcc += dt;
   if (hudAcc >= 0.1) {
     hudAcc = 0;
     updateHud();
     updateSkills();
     if ($('heroesSheet').classList.contains('open')) updateHeroList();
+    if ($('gachaSheet').classList.contains('open')) updateGacha();
   }
   requestAnimationFrame(loop);
 }
 
-buildHeroList();
 const firstLoad = !loadState();
 startGame(state);
 if (!firstLoad) checkOffline(state.lastSeen);
-else toast('แตะที่ศัตรูเพื่อปาระเบิด!', 2500);
+else toast('แตะจอเพื่อฟันเพิ่ม · เปิดกาชาเพื่อหาแมวเข้าทีม!', 3000);
 requestAnimationFrame(loop);

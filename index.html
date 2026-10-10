@@ -31,10 +31,12 @@
 
   <div class="top">
     <img class="avatar" src="assets/ui/avatar.png" alt="">
-    <div class="who"><div class="name stroke">CatMaster</div><div class="lv"><span>Lv. <b id="heroLv">1</b></span></div></div>
+    <div class="who"><div class="name stroke">CatMaster</div><div class="lv"><span>ดาบ Lv. <b id="heroLv">1</b></span></div></div>
     <div class="pill"><img src="assets/ui/coin.png" alt="เหรียญ"><span id="gold">0</span></div>
     <div class="pill"><img src="assets/ui/gem.png" alt="เพชร"><span id="gems">0</span></div>
   </div>
+
+  <button class="sidebtn" id="openSettings" aria-label="ตั้งค่า"><img src="assets/ui/setting.png" alt=""></button>
 
   <div class="stages">
     <div class="st"><span id="s0"></span></div><div class="dots">•••</div>
@@ -53,13 +55,14 @@
 
   <div id="enemy" aria-hidden="true"></div>
   <img class="hero" id="hero" src="assets/cats/hero.png" alt="">
+  <div class="herobar" id="heroBar"><i></i></div>
 
   <div class="skills" id="skills"></div>
 
   <div class="nav">
-    <button class="navbtn" id="openHeroes" aria-label="Heroes"><img src="assets/ui/heroes.png" alt="" style="width:76px"><i class="badge" id="heroBadge"></i></button>
+    <button class="navbtn" id="openHeroes" aria-label="ทีมแมว"><img src="assets/ui/heroes.png" alt="" style="width:76px"><i class="badge" id="heroBadge"></i></button>
     <button class="navbtn fight" id="fight" aria-label="Fight"><img src="assets/ui/btn-fight.png" alt=""></button>
-    <button class="navbtn" id="openSettings" aria-label="Setting"><img src="assets/ui/setting.png" alt="" style="width:60px"></button>
+    <button class="navbtn gachabtn" id="openGacha" aria-label="กาชา"><span class="gicon"><img src="assets/ui/gem.png" alt=""></span><span class="glabel">กาชา</span><i class="badge" id="gachaBadge"></i></button>
   </div>
 
   <div class="fx" id="fx"></div>
@@ -70,6 +73,31 @@
     <header><h2>ทีมแมว</h2><div class="modes" id="modes"><button data-mode="1" class="on">×1</button><button data-mode="10">×10</button><button data-mode="max">MAX</button></div><button class="close" data-close aria-label="ปิด">×</button></header>
     <div class="list" id="heroList"></div>
   </section>
+
+
+  <!-- แผ่นกาชา -->
+  <section class="sheet" id="gachaSheet" aria-label="กาชา">
+    <header><h2>เปิดกาชา</h2><div class="pill small"><img src="assets/ui/gem.png" alt="เพชร"><span id="gGems">0</span></div><button class="close" data-close aria-label="ปิด">×</button></header>
+    <div class="list">
+      <div class="banner" id="banner"></div>
+      <p class="rates">อัตราออก: <b class="r-ssr">SSR 3%</b> · <b class="r-sr">SR 22%</b> · <b class="r-r">R 75%</b> · ในระดับเดียวกันทุกตัวมีโอกาสเท่ากัน</p>
+      <p class="rates">เปิด 10 ครั้งการันตี SR ขึ้นไป 1 ตัว · <span id="pityText"></span></p>
+      <div class="pullrow">
+        <button class="btn pull" id="pull1"><b>เปิด 1 ครั้ง</b><span><img src="assets/ui/gem.png" alt="เพชร"> 100</span></button>
+        <button class="btn pull" id="pull10"><b>เปิด 10 ครั้ง</b><span><img src="assets/ui/gem.png" alt="เพชร"> 900</span></button>
+      </div>
+      <p class="rates muted">ได้แมวซ้ำ เก็บไว้อัปดาวในหน้าทีมแมว · แมว ★5 ที่ได้ซ้ำแลกเป็นเพชรคืน</p>
+    </div>
+  </section>
+
+  <!-- ผลกาชา -->
+  <div class="modal" id="gachaResult" hidden>
+    <div class="box wide">
+      <h2>ผลการเปิดกาชา</h2>
+      <div class="cards" id="cards"></div>
+      <button class="btn" id="resultOk">ตกลง</button>
+    </div>
+  </div>
 
   <!-- แผ่น Setting -->
   <section class="sheet" id="settingsSheet" aria-label="Setting">
