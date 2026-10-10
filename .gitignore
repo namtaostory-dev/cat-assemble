@@ -1,0 +1,21 @@
+# ภาพต้นฉบับ/concept art: เก็บไว้ในเครื่อง ไม่เผยแพร่
+assets/ref/
+
+# ไฟล์ทดลองหน้าตา ไม่ใช่ส่วนของเกม
+mockup.html
+mockup-v2.html
+
+# ตั้งค่าเฉพาะเครื่อง (มี path ในเครื่องอยู่)
+.claude/
+
+# ไฟล์ลับ ถ้ามีในอนาคต อย่าเอาขึ้น repo
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# ไฟล์ระบบ
+.DS_Store
+Thumbs.db
+node_modules/

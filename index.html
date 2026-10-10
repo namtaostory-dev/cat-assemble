@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Cat Assemble</title>
+<meta name="description" content="เกมแตะ + idle ทีมแมว 8 ธาตุ">
+<meta name="theme-color" content="#5cc4f2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cat Assemble">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="game">
+  <div class="sky"></div>
+  <svg class="mtn" viewBox="0 0 390 300" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 300 L0 120 L30 60 L50 110 L80 20 L110 100 L140 70 L170 140 L200 50 L230 130 L260 40 L290 110 L320 30 L350 100 L390 60 L390 300Z" fill="#c9a77b" opacity=".55"/>
+    <path d="M0 300 L0 170 L40 110 L70 160 L110 120 L150 190 L195 130 L240 190 L280 120 L320 170 L360 110 L390 150 L390 300Z" fill="#b48a5a" opacity=".7"/>
+  </svg>
+  <div class="ground"></div><div class="dirt"></div>
+
+  <div class="top">
+    <img class="avatar" src="assets/ui/avatar.png" alt="">
+    <div class="who"><div class="name stroke">CatMaster</div><div class="lv"><span>Lv. <b id="heroLv">1</b></span></div></div>
+    <div class="pill"><img src="assets/ui/coin.png" alt="เหรียญ"><span id="gold">0</span></div>
+    <div class="pill"><img src="assets/ui/gem.png" alt="เพชร"><span id="gems">0</span></div>
+  </div>
+
+  <div class="stages">
+    <div class="st"><span id="s0"></span></div><div class="dots">•••</div>
+    <div class="st cur"><span id="s1">1</span></div><div class="dots">•••</div>
+    <div class="st"><span id="s2">2</span></div>
+  </div>
+
+  <div class="bossbar" id="bossbar"><i id="hpbar"></i><div><span id="ename"></span><span id="hptxt"></span></div></div>
+  <div class="info"><span id="dps" class="stroke">DPS 0</span><span id="wave" class="stroke"></span></div>
+
+  <div id="battle" class="battle" aria-label="แตะเพื่อโจมตี"></div>
+
+  <div class="ledge l" style="top:336px"></div><div class="ledge l" style="top:430px"></div><div class="ledge l" style="top:524px"></div><div class="ledge l" style="top:618px"></div>
+  <div class="ledge r" style="top:336px"></div><div class="ledge r" style="top:430px"></div><div class="ledge r" style="top:524px"></div><div class="ledge r" style="top:618px"></div>
+  <div id="cats"></div>
+
+  <div id="enemy" aria-hidden="true"></div>
+  <img class="hero" id="hero" src="assets/cats/hero.png" alt="">
+
+  <div class="skills" id="skills"></div>
+
+  <div class="nav">
+    <button class="navbtn" id="openHeroes" aria-label="Heroes"><img src="assets/ui/heroes.png" alt="" style="width:76px"><i class="badge" id="heroBadge"></i></button>
+    <button class="navbtn fight" id="fight" aria-label="Fight"><img src="assets/ui/btn-fight.png" alt=""></button>
+    <button class="navbtn" id="openSettings" aria-label="Setting"><img src="assets/ui/setting.png" alt="" style="width:60px"></button>
+  </div>
+
+  <div class="fx" id="fx"></div>
+  <div class="toast" id="toast"></div>
+
+  <!-- แผ่น Heroes -->
+  <section class="sheet" id="heroesSheet" aria-label="Heroes">
+    <header><h2>ทีมแมว</h2><div class="modes" id="modes"><button data-mode="1" class="on">×1</button><button data-mode="10">×10</button><button data-mode="max">MAX</button></div><button class="close" data-close aria-label="ปิด">×</button></header>
+    <div class="list" id="heroList"></div>
+  </section>
+
+  <!-- แผ่น Setting -->
+  <section class="sheet" id="settingsSheet" aria-label="Setting">
+    <header><h2>ตั้งค่า</h2><button class="close" data-close aria-label="ปิด">×</button></header>
+    <div class="list settings">
+      <div class="card" id="installCard" hidden>
+        <h3>ติดตั้งเกมลงเครื่อง</h3>
+        <p id="installText">เล่นแบบเต็มจอ เปิดจากไอคอนบนหน้าจอได้ และเล่นออฟไลน์ได้</p>
+        <button class="btn" id="installBtn">ติดตั้ง</button>
+      </div>
+      <div class="card">
+        <h3>สำรองเซฟ</h3>
+        <p>คัดลอกข้อความนี้ไปเก็บไว้ ใช้ย้ายเครื่องหรือกู้เซฟได้</p>
+        <textarea id="exportText" readonly rows="3"></textarea>
+        <button class="btn" id="copyBtn">คัดลอก</button>
+      </div>
+      <div class="card">
+        <h3>กู้เซฟ</h3>
+        <textarea id="importText" rows="3" placeholder="CA1:…"></textarea>
+        <p class="err" id="importErr"></p>
+        <button class="btn" id="importBtn">โหลดเซฟนี้</button>
+      </div>
+      <div class="card">
+        <h3>สถิติ</h3>
+        <p id="statsText"></p>
+      </div>
+      <div class="card">
+        <h3>เริ่มเกมใหม่</h3>
+        <p>ลบความคืบหน้าทั้งหมดในเครื่องนี้ ย้อนกลับไม่ได้</p>
+        <button class="btn danger" id="resetBtn">ลบเซฟและเริ่มใหม่</button>
+      </div>
+      <p class="ver">Cat Assemble · ระยะ 1</p>
+    </div>
+  </section>
+
+  <!-- หน้าต่างเหรียญตอนไม่อยู่ -->
+  <div class="modal" id="offline" hidden>
+    <div class="box">
+      <h2>ยินดีต้อนรับกลับมา</h2>
+      <p id="offText"></p>
+      <div class="offgold"><img src="assets/ui/coin.png" alt=""><span id="offGold"></span></div>
+      <div class="row">
+        <button class="btn" id="offTake">รับ</button>
+        <button class="btn gem" id="offX2">รับ ×2 · <img src="assets/ui/gem.png" alt="เพชร"> <span id="offCost"></span></button>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
