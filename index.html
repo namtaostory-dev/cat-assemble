@@ -93,12 +93,22 @@
     </div>
   </section>
 
-  <!-- ผลกาชา -->
-  <div class="modal" id="gachaResult" hidden>
-    <div class="box wide">
-      <h2>ผลการเปิดกาชา</h2>
-      <div class="cards" id="cards"></div>
-      <button class="btn" id="resultOk">ตกลง</button>
+  <!-- ผลกาชา: เต็มจอ -->
+  <div class="gshow" id="gachaShow" hidden>
+    <div class="rays"></div>
+    <svg class="paw" viewBox="0 0 200 200" aria-hidden="true">
+      <ellipse cx="100" cy="132" rx="58" ry="48"/>
+      <ellipse cx="40" cy="78" rx="20" ry="26"/><ellipse cx="78" cy="46" rx="20" ry="27"/>
+      <ellipse cx="122" cy="46" rx="20" ry="27"/><ellipse cx="160" cy="78" rx="20" ry="26"/>
+    </svg>
+    <div class="confetti" id="confetti"></div>
+    <div class="gtitle" id="gTitle"></div>
+    <div class="gside left" id="gLeft"></div>
+    <div class="gside right" id="gRight"></div>
+    <div class="gfeat" id="gFeat"></div>
+    <div class="gbtns">
+      <button class="btn ghost" id="gOk">ตกลง</button>
+      <button class="btn gagain" id="gAgain"></button>
     </div>
   </div>
 

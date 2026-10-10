@@ -1,7 +1,7 @@
 import { BAL, CATS, GACHA, STAR, SKILLS, HERO, PASSIVES } from './config.js';
 import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
-import { Game, catById, swordDmgAt, nextMile, isBigBoss, skillPower } from './game.js';
+import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower } from './game.js';
 
 const $ = id => document.getElementById(id);
 const gameEl = $('game'), fx = $('fx');
@@ -411,26 +411,70 @@ function updateGacha() {
   $('pull1').disabled = g < GACHA.cost1;
   $('pull10').disabled = g < GACHA.cost10;
 }
+// ---------- หน้าผลกาชา ----------
+const RANK = { SSR: 3, SR: 2, R: 1 };
+const TITLE = { SSR: 'SSR<small>ตำนาน!</small>', SR: 'SR<small>หายาก!</small>', R: 'ได้แมวแล้ว!' };
+let lastPull = 1;
+function resultNote(r) {
+  if (r.isNew) return '<div class="note new">ใหม่!</div>';
+  if (r.refund) return `<div class="note">★5 แล้ว +${r.refund} เพชร</div>`;
+  return `<div class="note${r.canStar ? ' new' : ''}">ซ้ำ +1${r.canStar ? ' อัปดาวได้' : ''}</div>`;
+}
+function smallCard(r, delay) {
+  const c = catById(r.id);
+  return `<div class="gc ${r.rarity}" style="animation-delay:${delay}s"><span class="tag">${r.rarity}</span><img src="assets/cats/${c.img}.png" alt=""><div class="nm">${c.name}</div>${resultNote(r)}</div>`;
+}
+function featCard(r, delay) {
+  const c = catById(r.id), o = state.cats[r.id], p = skillPower(o.star);
+  const passive = c.passive ? `<br><b>พาสซีฟ:</b> ${PASSIVES[c.passive].text(p)}` : '';
+  return `<img class="big" src="assets/cats/${c.img}.png" alt="" style="animation-delay:${delay}s">` +
+    `<div class="gc ${r.rarity}" style="animation-delay:${delay + 0.15}s"><span class="tag">${r.rarity}</span><div class="nm">${c.name} ${'★'.repeat(o.star)}</div>` +
+    `<div class="ginfo"><b>DPS พื้นฐาน:</b> ${fmt(catDpsAt(r.id, 1, o.star))}${passive}<br><b>สกิล ${SKILLS[r.id].name}:</b> ${SKILLS[r.id].desc(p)}</div>${resultNote(r)}</div>`;
+}
+function confetti() {
+  const box = $('confetti'), cols = ['#ffd23a', '#ff6a8a', '#5ac8ff', '#7be04a', '#b583ff', '#fff'];
+  box.innerHTML = Array.from({ length: 40 }, () =>
+    `<i style="left:${Math.random() * 390}px;background:${cols[Math.floor(Math.random() * cols.length)]};animation-duration:${2 + Math.random() * 2}s;animation-delay:${Math.random() * 1.2}s"></i>`).join('');
+}
+function showResults(res, n) {
+  // ตัวเด่น: ระดับสูงสุด ถ้าเท่ากันเลือกตัวใหม่ก่อน
+  const fi = res.reduce((best, r, i) => {
+    const b = res[best];
+    return RANK[r.rarity] > RANK[b.rarity] || (RANK[r.rarity] === RANK[b.rarity] && r.isNew && !b.isNew) ? i : best;
+  }, 0);
+  const feat = res[fi], rest = res.filter((_, i) => i !== fi);
+  const top = feat.rarity;
+  const show = $('gachaShow');
+  show.className = 'gshow ' + top.toLowerCase();
+  $('gTitle').innerHTML = TITLE[top];
+  const half = Math.ceil(rest.length / 2);
+  $('gLeft').innerHTML = rest.slice(0, half).map((r, i) => smallCard(r, 0.3 + i * 0.12)).join('');
+  $('gRight').innerHTML = rest.slice(half).map((r, i) => smallCard(r, 0.36 + i * 0.12)).join('');
+  $('gFeat').innerHTML = featCard(feat, 0.3 + half * 0.12);
+  $('confetti').innerHTML = '';
+  if (RANK[top] >= 2) setTimeout(confetti, 300);
+  if (top === 'SSR') setTimeout(() => flash('#ffe27a'), 250);
+  lastPull = n;
+  updateAgain();
+  show.hidden = false;
+}
+function updateAgain() {
+  const cost = lastPull === 10 ? GACHA.cost10 : GACHA.cost1;
+  const b = $('gAgain');
+  b.textContent = `ดึงต่อ! (×${lastPull}) · ${cost} เพชร`;
+  b.disabled = game.gems() < cost;
+}
 function doPull(n) {
   const res = game.pull(n);
   if (!res) return toast('เพชรไม่พอ');
   saveState(state);
-  const cards = $('cards');
-  cards.className = 'cards' + (n === 1 ? ' one' : '');
-  cards.innerHTML = res.map((r, i) => {
-    const c = catById(r.id);
-    const note = r.isNew ? '<div class="note new">ใหม่!</div>'
-      : r.refund ? `<div class="note">★5 แล้ว +${r.refund} เพชร</div>`
-      : `<div class="note${r.canStar ? ' new' : ''}">ซ้ำ +1${r.canStar ? ' อัปดาวได้' : ''}</div>`;
-    return `<div class="card ${r.rarity}" style="animation-delay:${i * 0.12}s"><span class="rar ${r.rarity}">${r.rarity}</span><img src="assets/cats/${c.img}.png" alt=""><div class="nm">${c.name}</div>${note}</div>`;
-  }).join('');
-  $('gachaResult').hidden = false;
-  if (res.some(r => r.rarity === 'SSR')) flash('#ffc83a');
+  showResults(res, n);
   buildBanner(); updateGacha(); buildHeroList(); updateHud();
 }
 $('pull1').addEventListener('click', () => doPull(1));
 $('pull10').addEventListener('click', () => doPull(10));
-$('resultOk').addEventListener('click', () => ($('gachaResult').hidden = true));
+$('gOk').addEventListener('click', () => ($('gachaShow').hidden = true));
+$('gAgain').addEventListener('click', () => doPull(lastPull));
 
 // ---------- เปิด/ปิดแผ่น ----------
 function openSheet(id) {
