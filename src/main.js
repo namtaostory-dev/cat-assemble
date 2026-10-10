@@ -66,17 +66,17 @@ function showEnemy(e) {
   const el = $('enemy');
   let w, h, cx;
   if (e.boss) {
-    w = e.big ? 300 : 270; h = w * GOLEM_RATIO; cx = 258;
+    w = e.big ? 350 : 320; h = w * GOLEM_RATIO; cx = 195;
     el.innerHTML = `<img class="boss" src="assets/enemies/golem.png" alt="" style="filter:hue-rotate(${e.hue}deg)">`;
   } else {
-    w = 210 * 0.72; h = 270 * 0.72; cx = 285;
+    w = 210 * 0.72; h = 270 * 0.72; cx = 195;
     el.innerHTML = enemySvg(e);
   }
   el.style.width = w + 'px';
   el.style.height = h + 'px';
   el.style.left = cx + 'px';
   el.style.marginLeft = -w / 2 + 'px';
-  el.style.top = 652 - h + 'px';
+  el.style.top = 520 - h + 'px';
   el.classList.toggle('big', !!e.big);
   el.classList.remove('hit');
   el.classList.add('spawn');
@@ -100,7 +100,7 @@ function stackRow(key) {
   const now = performance.now(), st = stacks[key];
   if (!st || now - st.t > 380) return (stacks[key] = { n: 0, t: now }).n;
   st.t = now;
-  st.n = (st.n + 1) % 7;
+  st.n = (st.n + 1) % 6;
   return st.n;
 }
 function popText(text, x, y, cls, stackKey) {
@@ -110,7 +110,7 @@ function popText(text, x, y, cls, stackKey) {
   d.firstChild.textContent = d.lastChild.textContent = text;
   if (stackKey) {
     const e = center($('enemy'));
-    x = e.x + { hero: -24, cat: 52, dot: 10 }[stackKey] + (Math.random() * 10 - 5);
+    x = e.x + { hero: -40, cat: 50, dot: 5 }[stackKey] + (Math.random() * 10 - 5);
     y = e.y - 40 - stackRow(stackKey) * (cls === 'crit' ? 36 : 30);
   } else {
     x += Math.random() * 20 - 10;
@@ -153,10 +153,10 @@ function enemyPoint() {
 // ---------- แมวบนแท่นหิน: x = กึ่งกลางตัว, y = ระดับเท้า ----------
 // r = อยู่ฝั่งขวา หันหน้าไปทางซ้าย
 const SLOT_POS = [
-  { x: 38, y: 316 }, { x: 104, y: 316 },
-  { x: 290, y: 316, r: true }, { x: 356, y: 316, r: true },
-  { x: 36, y: 414 }, { x: 98, y: 414 },
-  { x: 30, y: 512 }, { x: 82, y: 512 },
+  { x: 50, y: 434 }, { x: 112, y: 434 },                      // เกาะซ้าย
+  { x: 278, y: 434, r: true }, { x: 340, y: 434, r: true },   // เกาะขวา
+  { x: 34, y: 666 }, { x: 96, y: 666 },                       // ทางเดินซ้ายของตัวเรา
+  { x: 294, y: 666, r: true }, { x: 356, y: 666, r: true },   // ทางเดินขวาของตัวเรา
 ];
 const slots = SLOT_POS.map(pos => {
   const el = document.createElement('div');
@@ -215,7 +215,23 @@ function heroSlash(p, source) {
   else game.slash('auto');
   playSlash();
 }
-$('battle').addEventListener('pointerdown', e => heroSlash(toScene(e.clientX, e.clientY), 'tap'));
+// ดาวระเบิด "TAP" ตรงจุดที่แตะ (ไม่เกินทุก 120 มิลลิวินาที จะได้ไม่รก)
+let lastTapFx = 0;
+function tapFx(p) {
+  const now = performance.now();
+  if (now - lastTapFx < 120) return;
+  lastTapFx = now;
+  const t = document.createElement('div');
+  t.className = 'tapfx';
+  t.innerHTML = '<span>TAP</span>';
+  t.style.left = p.x + 'px'; t.style.top = p.y + 'px';
+  addFx(t, 400);
+}
+$('battle').addEventListener('pointerdown', e => {
+  const p = toScene(e.clientX, e.clientY);
+  tapFx(p);
+  heroSlash(p, 'tap');
+});
 $('fight').addEventListener('click', () => {
   if (game.challengeBoss()) { toast('ท้าบอสอีกครั้ง!'); return; }
   heroSlash(enemyPoint(), 'tap');

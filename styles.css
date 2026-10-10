@@ -11,7 +11,7 @@ button { font:inherit; color:inherit; }
 /* ส่วนที่ต้องกด/อ่านอยู่ในกรอบ 390×844 ส่วนฉากหลังและแถบต่างๆ ขยายเลยกรอบออกไปให้เต็มขอบจอ */
 #game { position:absolute; left:0; top:0; width:390px; height:844px; overflow:visible; transform-origin:0 0; }
 
-.dirt { position:absolute; left:-300px; right:-300px; top:656px; bottom:-300px; background:#3b3a2e; border-top:4px solid #2a291f; z-index:1; }
+.dirt { position:absolute; left:-300px; right:-300px; top:668px; bottom:-300px; background:#3b3a2e; border-top:4px solid #2a291f; z-index:1; }
 .stroke { -webkit-text-stroke:4px var(--ink); paint-order:stroke fill; }
 
 /* แถบบน */
@@ -46,7 +46,7 @@ button { font:inherit; color:inherit; }
 /* หน้าผาและแมว */
 .ledge { position:absolute; width:120px; height:16px; background:#6bbd3a; border-radius:8px 8px 4px 4px; box-shadow:0 6px 0 #8b5a2b, 0 12px 0 #6e4421; z-index:2; pointer-events:none; }
 .ledge.l { left:-14px; } .ledge.r { right:-14px; }
-.cat { position:absolute; width:80px; margin-left:-40px; z-index:3; transform:translateY(-100%); transition:transform .1s, filter .3s; pointer-events:none; }
+.cat { position:absolute; width:80px; margin-left:-40px; z-index:4; transform:translateY(-100%); transition:transform .1s, filter .3s; pointer-events:none; }
 .cat img { height:80px; width:auto; max-width:120px; object-fit:contain; display:block; margin-left:50%; transform:translateX(-50%); filter:drop-shadow(0 3px 2px rgba(0,0,0,.35)); }
 .cat.r img { transform:translateX(-50%) scaleX(-1); }
 .cat .bar { position:absolute; top:-10px; left:16px; right:16px; height:6px; background:var(--ink); border-radius:3px; overflow:hidden; }
@@ -62,10 +62,10 @@ button { font:inherit; color:inherit; }
 #enemy svg { width:100%; height:100%; overflow:visible; }
 #enemy.hit { animation:hit .12s; }
 #enemy.spawn { animation:spawn .3s; }
-@keyframes hit { 50% { transform:scale(.96) rotate(-1deg); filter:brightness(1.25); } }
+@keyframes hit { 50% { transform:scale(.97) rotate(-.6deg); filter:brightness(1.1); } }
 @keyframes spawn { from { transform:scale(.3); opacity:0; } }
 
-.hero { position:absolute; left:40px; top:490px; width:247px; height:165px; z-index:3; image-rendering:pixelated; filter:drop-shadow(0 4px 3px rgba(0,0,0,.35)); pointer-events:none; }
+.hero { position:absolute; left:126px; top:452px; width:209px; height:140px; z-index:5; image-rendering:pixelated; filter:drop-shadow(0 4px 3px rgba(0,0,0,.35)); pointer-events:none; }
 .hero.atk { transform:translateY(-8px) scale(1.06); }
 
 /* เอฟเฟกต์ */
@@ -150,7 +150,7 @@ button { font:inherit; color:inherit; }
 
 
 /* หลอดฟันอัตโนมัติของตัวเรา */
-.herobar { position:absolute; left:92px; top:660px; width:56px; height:6px; background:var(--ink); border-radius:3px; overflow:hidden; z-index:3; }
+.herobar { position:absolute; left:167px; top:596px; width:56px; height:6px; z-index:5; background:var(--ink); border-radius:3px; overflow:hidden; z-index:3; }
 .herobar i { display:block; height:100%; width:0; background:#ffd23a; }
 .slashfx { position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border-top:6px solid #fff; border-right:3px solid rgba(255,255,255,.4); box-shadow:0 -6px 12px -4px #ffe27a; animation:slash .18s ease-out forwards; pointer-events:none; }
 .slashfx.crit { border-top-color:#ff8a5a; box-shadow:0 -6px 16px -2px #ff5a3a; }
@@ -304,7 +304,7 @@ button { font:inherit; color:inherit; }
 #enemy.big img.boss { filter:drop-shadow(0 0 10px rgba(255,80,60,.8)) drop-shadow(0 6px 4px rgba(0,0,0,.4)); }
 
 /* ฉากหลัง: ภาพซากปรักหักพัง ชิดล่างที่ระดับพื้น ด้านบนเติมสีฟ้า */
-.scene { position:absolute; left:-300px; right:-300px; top:-300px; height:960px; background:#61aad3 url(assets/scenes/ruins.png) center bottom / auto 620px no-repeat; }
+.scene { position:absolute; left:-300px; right:-300px; top:-300px; height:968px; background:#61aad3 url(assets/scenes/ruins.png) center bottom / auto 640px no-repeat; }
 
 /* พื้นแถบเมนูล่างขยายเต็มความกว้างจอและลงไปใต้แถบโฮม */
 .nav::before { content:''; position:absolute; left:-300px; right:-300px; top:0; bottom:-300px; background:#16203a; border-top:3px solid #3b4d74; z-index:-1; }
@@ -313,3 +313,16 @@ button { font:inherit; color:inherit; }
 .modal { inset:-300px; }
 .gshow { overflow:visible; background:none; }
 .gshow::before { content:''; position:absolute; inset:-300px; background:radial-gradient(circle at 50% 42%, #7a4a1c 0%, #3a2312 45%, #1a1008 100%); z-index:-1; }
+
+/* เกาะลอยฟ้า: หญ้าด้านบน หินทรงหยดน้ำ คริสตัลห้อยด้านล่าง */
+.isle { position:absolute; width:150px; height:70px; z-index:3; pointer-events:none; }
+.isle::before { content:''; position:absolute; left:8px; right:8px; top:8px; height:58px; background:linear-gradient(#9a8a74, #6a5a4a 60%, #4a3e34); clip-path:polygon(0 0, 100% 0, 92% 30%, 78% 62%, 60% 100%, 44% 82%, 26% 66%, 8% 32%); }
+.isle::after { content:''; position:absolute; left:0; right:0; top:0; height:20px; background:#7fb04a; border-radius:50%; box-shadow:inset 0 -5px 0 #5c8a32, 0 3px 0 rgba(0,0,0,.15); }
+.isle .cr { position:absolute; top:40px; width:12px; height:22px; background:linear-gradient(#e8ffff, #7fe0e0 45%, #2f9ab0); clip-path:polygon(0 0, 100% 0, 50% 100%); z-index:-1; }
+.isle .cr.big { top:52px; width:16px; height:30px; }
+
+/* เอฟเฟกต์ TAP ตรงจุดที่แตะ */
+.tapfx { position:absolute; width:96px; height:96px; margin:-48px 0 0 -48px; display:grid; place-items:center; pointer-events:none; animation:tappop .4s ease-out forwards; z-index:7; }
+.tapfx::before { content:''; position:absolute; inset:0; background:radial-gradient(circle, #fff6b0 0 35%, #ffc21a 60%, #ff7a00); clip-path:polygon(50% 0, 60% 32%, 92% 18%, 70% 45%, 100% 55%, 68% 64%, 82% 96%, 52% 72%, 30% 100%, 34% 68%, 0 70%, 28% 50%, 6% 22%, 38% 30%); }
+.tapfx span { position:relative; font-family:'Lilita One', sans-serif; font-size:22px; color:#ffe9a0; -webkit-text-stroke:5px #5a2a00; paint-order:stroke fill; }
+@keyframes tappop { 0% { transform:scale(.3) rotate(-10deg); opacity:1; } 40% { transform:scale(1.1) rotate(4deg); opacity:1; } 100% { transform:scale(1.2); opacity:0; } }
