@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Mitr:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -35,8 +35,6 @@
     <div class="pill"><img src="assets/ui/coin.png" alt="เหรียญ"><span id="gold">0</span><button class="plus" id="addGold" aria-label="รับเหรียญฟรี (ทดสอบ)" hidden>+</button></div>
     <div class="pill"><img src="assets/ui/gem.png" alt="เพชร"><span id="gems">0</span><button class="plus" id="addGems" aria-label="รับเพชรฟรี (ทดสอบ)" hidden>+</button></div>
   </div>
-
-  <button class="sidebtn" id="openSettings" aria-label="ตั้งค่า"><img src="assets/ui/setting.png" alt=""></button>
 
   <div class="stages">
     <div class="st"><span id="s0"></span></div><div class="dots">•••</div>
@@ -62,11 +60,12 @@
 
   <div class="skills" id="skills"></div>
 
-  <div class="nav">
-    <button class="navbtn" id="openHeroes" aria-label="ทีมแมว"><img src="assets/ui/heroes.png" alt="" style="width:76px"><i class="badge" id="heroBadge"></i></button>
-    <button class="navbtn fight" id="fight" aria-label="Fight"><img src="assets/ui/btn-fight.png" alt=""></button>
-    <button class="navbtn gachabtn" id="openGacha" aria-label="กาชา"><span class="gicon"><img src="assets/ui/gem.png" alt=""></span><span class="glabel">กาชา</span><i class="badge" id="gachaBadge"></i></button>
-  </div>
+  <nav class="nav">
+    <button class="tile" id="openHeroes"><span class="ico"><img src="assets/ui/avatar.png" alt=""></span><span class="lbl">ทีมแมว</span><i class="badge" id="heroBadge"></i></button>
+    <button class="tile" id="openGacha"><span class="ico"><img src="assets/ui/gem.png" alt="" class="gemico"></span><span class="lbl">กาชา</span><i class="badge" id="gachaBadge"></i></button>
+    <button class="fight" id="fight" aria-label="Fight"><img src="assets/ui/btn-fight.png" alt=""></button>
+    <button class="tile" id="openSettings"><span class="ico"><img src="assets/ui/ico-setting.png" alt=""></span><span class="lbl">ตั้งค่า</span></button>
+  </nav>
 
   <div class="fx" id="fx"></div>
   <div class="toast" id="toast"></div>

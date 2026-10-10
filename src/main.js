@@ -77,18 +77,37 @@ function showEnemy(e) {
 // ---------- เอฟเฟกต์ ----------
 let fxCount = 0;
 function addFx(el, ms) {
-  if (fxCount > 45) return false;
+  if (fxCount > 70) return false;
   fx.appendChild(el); fxCount++;
   setTimeout(() => { el.remove(); fxCount--; }, ms);
   return true;
 }
-function popText(text, x, y, cls) {
+// ตัวเลขเต็มจนถึง 9,999,999 เกินนั้นใช้หน่วยย่อ
+const fmtDmg = n => n < 1e7 ? String(Math.floor(n)) : fmt(n);
+// ตีรัวๆ ตัวเลขจะซ้อนขึ้นไปเป็นกองในคอลัมน์ของแหล่งดาเมจนั้น
+const stacks = {};
+function stackRow(key) {
+  const now = performance.now(), st = stacks[key];
+  if (!st || now - st.t > 380) return (stacks[key] = { n: 0, t: now }).n;
+  st.t = now;
+  st.n = (st.n + 1) % 7;
+  return st.n;
+}
+function popText(text, x, y, cls, stackKey) {
   const d = document.createElement('div');
   d.className = 'dmg ' + (cls || '');
-  d.textContent = text;
-  d.style.left = (x - 24 + Math.random() * 20) + 'px';
+  d.innerHTML = '<span class="o"></span><span class="f"></span>';
+  d.firstChild.textContent = d.lastChild.textContent = text;
+  if (stackKey) {
+    const e = center($('enemy'));
+    x = e.x + { hero: -24, cat: 52, dot: 10 }[stackKey] + (Math.random() * 10 - 5);
+    y = e.y - 40 - stackRow(stackKey) * (cls === 'crit' ? 36 : 30);
+  } else {
+    x += Math.random() * 20 - 10;
+  }
+  d.style.left = x + 'px';
   d.style.top = (y - 20) + 'px';
-  addFx(d, 800);
+  addFx(d, 900);
 }
 function boom(x, y, color) {
   const b = document.createElement('div');
@@ -202,9 +221,9 @@ function startGame(s) {
     onHit(amount, source, crit) {
       const p = lastHit || enemyPoint();
       lastHit = null;
-      if (source === 'dot') return popText(fmt(amount), p.x, p.y, 'cat');
+      if (source === 'dot') return popText(fmtDmg(amount), 0, 0, 'dot', 'dot');
       if (source === 'tap' || source === 'auto') slashFx(p.x, p.y, crit);
-      popText(fmt(amount) + (crit ? '!' : ''), p.x, p.y, crit ? 'crit' : source === 'cat' ? 'cat' : '');
+      popText(fmtDmg(amount), 0, 0, crit ? 'crit' : source === 'cat' ? 'cat' : '', source === 'cat' ? 'cat' : 'hero');
       const el = $('enemy');
       el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
     },
