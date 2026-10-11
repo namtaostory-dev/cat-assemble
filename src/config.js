@@ -108,8 +108,61 @@ export const ZONES = [
   { name: 'ป่าหิมะ',             hue: 160, enemies: ['จิ้งจอก', 'หมาป่า', 'หมาป่าหิมะ'],     bosses: ['จิ้งจอกเจ้าเล่ห์', 'หมาป่าหินผา', 'ราชาหมาป่า'] },
 ];
 
+// เลเวลตัวเรา: ล่ามอนได้ EXP ขึ้นเลเวลแล้วดาเมจเพิ่ม และปลดช่องเรียกคู่หู
+export const LEVEL = {
+  expBase: 12,            // EXP ที่ต้องใช้จาก Lv L → L+1 = expBase × L^expPow
+  expPow: 2,
+  expPerMonster: s => 3 + 2 * s,
+  expBossMul: 10,
+  dmgPerLevel: 0.03,      // ทุกเลเวล ดาเมจทั้งตัวเราและคู่หู +3%
+  slotsAt: [1, 10, 30, 60], // เลเวลที่ได้ช่องคู่หูช่องที่ 1, 2, 3, 4
+};
+
+// อุปกรณ์: ดรอปจากมอนสเตอร์ ตีบวกได้ +1 ถึง +10 ชุด (outfit) เปลี่ยนหน้าตาตัวเราด้วย
+export const EQUIP = {
+  slots: {
+    weapon: { name: 'อาวุธ',   icon: '⚔️', stat: 'dmg' },
+    hat:    { name: 'หมวก',    icon: '🎩', stat: 'crit' },
+    armor:  { name: 'เกราะ',   icon: '🛡️', stat: 'dmg' },
+    gloves: { name: 'ถุงมือ',   icon: '🧤', stat: 'critDmg' },
+    shoes:  { name: 'รองเท้า',  icon: '👢', stat: 'speed' },
+    ring:   { name: 'แหวน',    icon: '💍', stat: 'gold' },
+    outfit: { name: 'ชุด',     icon: '👘', stat: 'all' },
+  },
+  rarity: {
+    C: { name: 'ธรรมดา', mul: 1,   color: '#b8c4d6' },
+    R: { name: 'หายาก',  mul: 1.9, color: '#5aa8ff' },
+    E: { name: 'ล้ำค่า',  mul: 3.5, color: '#b583ff' },
+    L: { name: 'ตำนาน',  mul: 6,   color: '#ffc83a' },
+  },
+  // ค่าพลัง = base × ตัวคูณความหายาก × (1 + scale × เลเวลไอเทม) × (1 + 10% ต่อขั้นตีบวก)
+  stats: {
+    dmg:     { name: 'ดาเมจตัวเรา',  base: 8,  scale: 0.03 },
+    crit:    { name: 'โอกาสคริติคอล', base: 1,  scale: 0.002 },
+    critDmg: { name: 'ดาเมจคริติคอล', base: 10, scale: 0.02 },
+    speed:   { name: 'ความเร็วตี',    base: 3,  scale: 0.004 },
+    gold:    { name: 'เหรียญ',       base: 5,  scale: 0.01 },
+    all:     { name: 'ดาเมจทั้งทีม',  base: 6,  scale: 0.03 },
+  },
+  dropRate: 0.03,                                   // โอกาสดรอปจากมอนสเตอร์ธรรมดา
+  dropRarity: { C: 0.70, R: 0.22, E: 0.07, L: 0.01 },
+  bossRarity: { C: 0.30, R: 0.45, E: 0.20, L: 0.05 }, // บอสดรอปทุกครั้ง
+  enhanceMax: 10,
+  enhanceRate: [1, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2],  // โอกาสสำเร็จ +0→+1 … +9→+10 (ล้มเหลวเสียแค่เหรียญ)
+  enhancePer: 0.1,
+  invMax: 60,
+  // หน้าตาชุดชั่วคราว: ปรับโทนสีภาพตัวเรา จนกว่าจะมีภาพชุดจริง
+  outfits: [
+    { name: 'ชุดอัศวินทอง',  filter: 'sepia(.6) saturate(1.8) hue-rotate(-10deg)' },
+    { name: 'ชุดนินจาเงา',   filter: 'grayscale(.7) brightness(.65) contrast(1.3)' },
+    { name: 'ชุดจอมเวทม่วง', filter: 'hue-rotate(200deg) saturate(1.3)' },
+    { name: 'ชุดเกราะมรกต',  filter: 'hue-rotate(100deg) saturate(1.3)' },
+    { name: 'ชุดซามูไรแดง',  filter: 'hue-rotate(-50deg) saturate(1.6)' },
+  ],
+};
+
 // โหมดทดสอบ: ปุ่ม + รับเหรียญและเพชรฟรี ต้องตั้งเป็น false ก่อนเปิดขายเพชรจริง
 export const DEV = { freeCurrency: true, gemsPerClick: 1000, minGoldPerClick: 10000 };
 
 export const SAVE_KEY = 'cat-assemble-save';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;

@@ -1,7 +1,7 @@
-import { BAL, CATS, GACHA, STAR, SKILLS, HERO, PASSIVES, DEV } from './config.js';
+import { BAL, CATS, GACHA, STAR, SKILLS, HERO, PASSIVES, DEV, EQUIP, LEVEL } from './config.js';
 import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
-import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower } from './game.js';
+import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower, itemValue, itemName, expNeed, slotsAtLevel } from './game.js';
 import { Battle, W, H } from './battle.js';
 
 const $ = id => document.getElementById(id);
@@ -93,6 +93,14 @@ function tapFx(x, y) {
   t.style.left = x + 'px'; t.style.top = y + 'px';
   addFx(t, 400);
 }
+function lvupFx(lv, newSlot) {
+  const d = document.createElement('div');
+  d.className = 'lvup';
+  d.innerHTML = `LEVEL UP! ${lv}` + (newSlot ? `<small>ปลดช่องคู่หูใหม่! เรียกได้ ${slotsAtLevel(lv)} ตัว</small>` : '');
+  d.style.left = battle.hero.x + 'px';
+  d.style.top = Math.max(50, battle.hero.y - 150) + 'px';
+  addFx(d, 1400);
+}
 function flash(color) {
   const f = document.createElement('div');
   f.className = 'flash'; f.style.background = color;
@@ -112,13 +120,30 @@ let game, battle;
 const ui = {
   pop: popOn, slashFx, tapFx, boomFx, flash,
   coinTo: { x: 24, y: 72 },   // ตำแหน่งไอคอนเหรียญบนจอ เหรียญจะบินเข้าตรงนี้
+  bagTo: { x: 560, y: 30 },   // ปุ่ม "ตัวเรา" ไอเทมที่ดรอปจะบินเข้าตรงนี้
 };
 function startGame(s) {
   state = s;
   game = new Game(state, {
-    onKill(e, gold, gems) {
+    onKill(e, gold, gems, drop) {
       popText('+' + fmt(gold), e.x, Math.max(40, e.y - e.h - 6), 'gold');
       if (gems) popText('+' + gems + ' เพชร', e.x, Math.max(40, e.y - e.h - 30), 'gold');
+      if (drop) {
+        battle.lootFx(e, EQUIP.rarity[drop.rarity].color);
+        if (drop.rarity !== 'C') toast(`ได้${itemName(drop)} (${drop.rarity}) Lv ${drop.lv}`, 1800);
+        if ($('equipSheet').classList.contains('open')) buildEquip();
+      }
+    },
+    onLevel(lv, newSlot) {
+      lvupFx(lv, newSlot);
+      if (newSlot) {
+        // ปลดช่องคู่หูใหม่: ดึงแมวที่มีอยู่แต่ยังไม่ได้เรียกมาลงช่องอัตโนมัติ
+        const spare = CATS.find(c => state.cats[c.id] && !state.team.includes(c.id));
+        if (spare) state.team.push(spare.id);
+        onTeamChanged();
+        if ($('heroesSheet').classList.contains('open')) { buildHeroList(); updateHeroList(); }
+      }
+      saveState(state);
     },
     onStage(stage) {
       toast(isBigBoss(stage - 1) ? `ล้มบอสใหญ่! ไปด่าน ${stage}` : `ผ่านด่าน! ไปด่าน ${stage}`);
@@ -155,9 +180,17 @@ let skillEls = [];
 function buildSkillBar() {
   const bar = $('skills');
   bar.innerHTML = '';
-  skillEls = Array.from({ length: BAL.teamSize }, (_, i) => {
-    const id = state.team[i];
+  const open = game.slots();
+  skillEls = LEVEL.slotsAt.map((needLv, i) => {
+    const id = i < open ? state.team[i] : null;
     const b = document.createElement('button');
+    if (i >= open) {
+      b.className = 'sk lock';
+      b.textContent = 'Lv ' + needLv;
+      b.setAttribute('aria-label', `ช่องคู่หูปลดที่เลเวล ${needLv}`);
+      bar.appendChild(b);
+      return null;
+    }
     b.className = 'sk' + (id ? '' : ' empty');
     if (id) {
       b.setAttribute('aria-label', 'สกิล' + SKILLS[id].name);
@@ -193,7 +226,9 @@ function updateHud() {
   const s = state, boss = battle.boss;
   $('gold').textContent = fmt(s.gold);
   $('gems').textContent = fmt(game.gems());
-  $('heroLv').textContent = s.swordLv;
+  $('heroLv').textContent = s.level;
+  $('expBar').style.width = Math.min(100, s.exp / expNeed(s.level) * 100) + '%';
+  $('equipBadge').classList.toggle('on', hasBetterGear());
   $('stageNo').textContent = s.stage;
   $('stagePill').classList.toggle('big', isBigBoss(s.stage));
   const wave = $('wave'), bar = $('bossbar');
@@ -217,6 +252,14 @@ function updateHud() {
   $('fight').classList.toggle('pulse', s.farming);
   $('heroBadge').classList.toggle('on', canUpgradeSomething());
   $('gachaBadge').classList.toggle('on', game.gems() >= GACHA.cost1);
+}
+// มีอุปกรณ์ในกระเป๋าที่แรงกว่าชิ้นที่สวมอยู่ (หรือช่องที่ยังว่าง) ไหม
+function hasBetterGear() {
+  for (const it of state.items) {
+    const cur = game.item(state.equip[it.slot]);
+    if (!cur || (cur.uid !== it.uid && itemValue(it) > itemValue(cur))) return true;
+  }
+  return false;
 }
 function canUpgradeSomething() {
   if (game.quote('sword', 1).cost <= state.gold || game.quote('speed', 1).cost <= state.gold) return true;
@@ -243,11 +286,12 @@ function buildHeroList() {
   sect('ตัวเรา');
   add('sword', HERO.img);
   add('speed', HERO.img);
-  sect(`แมวในทีม ${state.team.length}/${BAL.teamSize}`);
+  const open = game.slots(), nextLv = LEVEL.slotsAt[open];
+  sect(`คู่หูที่เรียกอยู่ ${state.team.length}/${open}` + (nextLv ? ` · ช่องถัดไปปลดที่ Lv ${nextLv}` : ' · ครบ 4 ช่องแล้ว'));
   state.team.forEach(id => add('cat:' + id, `assets/cats/${catById(id).img}.png`));
   const reserve = CATS.filter(c => state.cats[c.id] && !state.team.includes(c.id));
   if (reserve.length) {
-    sect('สำรอง · ไม่ได้ลงทีม');
+    sect('ในคอลเลกชัน · ยังไม่ได้เรียก');
     reserve.forEach(c => add('cat:' + c.id, `assets/cats/${c.img}.png`));
   }
   const missing = CATS.filter(c => !state.cats[c.id]);
@@ -280,7 +324,7 @@ function updateHeroList() {
       const starBtn = need === null ? '' :
         `<button class="starup ${o.dupes >= need ? 'ok' : ''}" data-star="${id}">อัปดาว ${o.dupes}/${need}</button>`;
       const inTeam = state.team.includes(id), p = skillPower(o.star);
-      nm = `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span> <small>Lv ${o.lv}</small><button class="teambtn ${inTeam ? 'on' : ''}" data-team="${id}">${inTeam ? 'ในทีม' : 'ลงทีม'}</button>`;
+      nm = `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span> <small>Lv ${o.lv}</small><button class="teambtn ${inTeam ? 'on' : ''}" data-team="${id}">${inTeam ? 'ช่วยสู้อยู่' : 'เรียก'}</button>`;
       sub = `${starsHtml(o.star)}${starBtn}<br>DPS ${fmt(inTeam ? game.catDps(id) : 0)} · ${SKILLS[id].name}: ${SKILLS[id].desc(p)}` +
         (c.passive ? `<br><span class="p on">พาสซีฟ: ${PASSIVES[c.passive].text(p)}</span>` : '');
       label = `อัป ×${q.n}`;
@@ -301,8 +345,8 @@ $('heroList').addEventListener('click', e => {
   const tb = e.target.closest('[data-team]');
   if (tb) {
     const id = tb.dataset.team, r = game.toggleTeam(id);
-    if (r === 'full') toast(`ทีมเต็ม ${BAL.teamSize} ตัวแล้ว ถอดตัวอื่นออกก่อน`);
-    else if (r === 'last') toast('ทีมต้องมีแมวอย่างน้อย 1 ตัว');
+    if (r === 'full') toast(game.slots() < LEVEL.slotsAt.length ? `เรียกได้ ${game.slots()} ตัว · ช่องถัดไปปลดที่ Lv ${LEVEL.slotsAt[game.slots()]}` : 'เรียกครบ 4 ตัวแล้ว ส่งตัวอื่นกลับก่อน', 2000);
+    else if (r === 'last') toast('ต้องมีคู่หูอย่างน้อย 1 ตัว');
     else { onTeamChanged(); buildHeroList(); updateHeroList(); updateHud(); saveState(state); }
     return;
   }
@@ -424,17 +468,106 @@ if (DEV.freeCurrency) {
   });
 }
 
+// ---------- แผ่นตัวเรา: อุปกรณ์และกระเป๋า ----------
+const SLOT_KEYS = Object.keys(EQUIP.slots);
+const pct = v => (v >= 100 ? Math.round(v) : v.toFixed(1)) + '%';
+function tileHtml(it, extra = '') {
+  return `<button class="itile ${it.rarity}" data-uid="${it.uid}">${EQUIP.slots[it.slot].icon}` +
+    (it.plus ? `<span class="pl">+${it.plus}</span>` : '') + extra + '</button>';
+}
+function buildEquip() {
+  const look = game.outfitLook();
+  $('heroPrev').style.filter = look ? look.filter : '';
+  $('outfitName').textContent = look ? look.name : 'ชุดปกติ';
+  $('slotGrid').innerHTML = SLOT_KEYS.map(k => {
+    const it = game.item(state.equip[k]);
+    return it ? tileHtml(it, `<span class="sl">${EQUIP.slots[k].name}</span>`)
+      : `<button class="itile empty" disabled>${EQUIP.slots[k].icon}<span class="sl">${EQUIP.slots[k].name}</span></button>`;
+  }).join('');
+  const g = game.gear();
+  $('gearStats').innerHTML = Object.entries(EQUIP.stats).map(([k, st]) => `${st.name} <b>+${pct(g[k])}</b>`).join(' · ') +
+    `<br>เลเวล Lv ${state.level}: ดาเมจทั้งทีม <b>+${Math.round((game.levelMul() - 1) * 100)}%</b>`;
+  $('invCount').textContent = `กระเป๋า ${state.items.length}/${EQUIP.invMax}`;
+  const order = { L: 0, E: 1, R: 2, C: 3 };
+  const items = [...state.items].sort((a, b) => order[a.rarity] - order[b.rarity] || SLOT_KEYS.indexOf(a.slot) - SLOT_KEYS.indexOf(b.slot) || itemValue(b) - itemValue(a));
+  $('invGrid').innerHTML = items.length
+    ? items.map(it => tileHtml(it, game.isEquipped(it.uid) ? '<span class="eq">E</span>' : '')).join('')
+    : '<p class="rates" style="grid-column:1/-1">ยังไม่มีอุปกรณ์ ล่ามอนสเตอร์เพื่อหาของ</p>';
+}
+let openUid = null;
+function showItem(uid) {
+  const it = game.item(uid);
+  if (!it) return;
+  openUid = uid;
+  const st = EQUIP.stats[EQUIP.slots[it.slot].stat], r = EQUIP.rarity[it.rarity];
+  $('imIco').textContent = EQUIP.slots[it.slot].icon;
+  $('imIco').style.borderColor = r.color;
+  $('imName').textContent = itemName(it) + (it.plus ? ` +${it.plus}` : '');
+  $('imName').style.color = r.color;
+  $('imSub').textContent = `${EQUIP.slots[it.slot].name} · ${r.name} · ไอเทม Lv ${it.lv}`;
+  $('imStat').textContent = `${st.name} +${pct(itemValue(it))}`;
+  const cur = game.item(state.equip[it.slot]);
+  const equipped = game.isEquipped(uid);
+  if (equipped) $('imCmp').innerHTML = '<span class="up">สวมอยู่</span>';
+  else if (!cur) $('imCmp').innerHTML = '<span class="up">ช่องนี้ยังว่าง</span>';
+  else {
+    const d = itemValue(it) - itemValue(cur);
+    $('imCmp').innerHTML = `เทียบกับที่สวมอยู่: <span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '▲ +' : '▼ '}${pct(d)}</span>`;
+  }
+  $('imEquip').textContent = equipped ? 'ถอด' : 'สวม';
+  const maxed = it.plus >= EQUIP.enhanceMax;
+  $('imEnhance').innerHTML = maxed ? 'ตีบวกเต็มแล้ว' : `ตีบวก +${it.plus + 1} · ${Math.round(game.enhanceRate(it) * 100)}% · <img src="assets/ui/coin.png" alt=""> ${fmt(game.enhanceCost(it), true)}`;
+  $('imEnhance').disabled = maxed;
+  $('imSalvage').textContent = `ย่อย +${fmt(game.salvageValue(it))} เหรียญ`;
+  $('imSalvage').disabled = equipped;
+  $('itemModal').hidden = false;
+}
+document.querySelector('#equipSheet').addEventListener('click', e => {
+  const t = e.target.closest('.itile[data-uid]');
+  if (t) showItem(+t.dataset.uid);
+});
+$('imClose').addEventListener('click', () => ($('itemModal').hidden = true));
+$('imEquip').addEventListener('click', () => {
+  const it = game.item(openUid);
+  if (!it) return;
+  if (game.isEquipped(it.uid)) game.unequip(it.slot); else game.equipItem(it.uid);
+  saveState(state); buildEquip(); showItem(openUid);
+});
+$('imEnhance').addEventListener('click', () => {
+  const r = game.enhance(openUid);
+  if (r === 'gold') toast('เหรียญไม่พอ');
+  else if (r === 'ok') { toast(`ตีบวกสำเร็จ! +${game.item(openUid).plus}`); flash('#ffe27a'); }
+  else if (r === 'fail') toast('ตีบวกไม่สำเร็จ เสียเหรียญไป', 1500);
+  saveState(state); buildEquip(); showItem(openUid); updateHud();
+});
+$('imSalvage').addEventListener('click', () => {
+  const g = game.salvage(openUid);
+  if (!g) return;
+  toast(`ย่อยแล้ว +${fmt(g)} เหรียญ`);
+  $('itemModal').hidden = true;
+  saveState(state); buildEquip(); updateHud();
+});
+$('salvageC').addEventListener('click', () => {
+  const list = state.items.filter(it => it.rarity === 'C' && !game.isEquipped(it.uid));
+  if (!list.length) return toast('ไม่มีของธรรมดาให้ย่อย');
+  const g = list.reduce((sum, it) => sum + game.salvage(it.uid), 0);
+  toast(`ย่อย ${list.length} ชิ้น +${fmt(g)} เหรียญ`);
+  saveState(state); buildEquip(); updateHud();
+});
+
 // ---------- เปิด/ปิดแผ่น ----------
 function openSheet(id) {
   document.querySelectorAll('.sheet').forEach(s => s.classList.toggle('open', s.id === id));
   if (id === 'heroesSheet') { buildHeroList(); updateHeroList(); }
   if (id === 'gachaSheet') { buildBanner(); updateGacha(); }
   if (id === 'settingsSheet') refreshSettings();
+  if (id === 'equipSheet') buildEquip();
 }
 function toggleSheet(id) { $(id).classList.contains('open') ? closeSheets() : openSheet(id); }
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); }
 $('openHeroes').addEventListener('click', () => toggleSheet('heroesSheet'));
 $('openGacha').addEventListener('click', () => toggleSheet('gachaSheet'));
+$('openEquip').addEventListener('click', () => toggleSheet('equipSheet'));
 $('openSettings').addEventListener('click', () => toggleSheet('settingsSheet'));
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
 

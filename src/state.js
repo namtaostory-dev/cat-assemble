@@ -1,4 +1,4 @@
-import { BAL, CATS, STAR, STARTER, SAVE_KEY, SAVE_VERSION } from './config.js';
+import { BAL, CATS, STAR, STARTER, EQUIP, LEVEL, SAVE_KEY, SAVE_VERSION } from './config.js';
 
 export function newState() {
   return {
@@ -20,6 +20,11 @@ export function newState() {
     skillUntil: {},    // id → Date.now() ที่บัฟหมด
     lastSeen: Date.now(),
     stats: { taps: 0, kills: 0, bosses: 0 },
+    level: 1,
+    exp: 0,
+    items: [],         // { uid, slot, rarity, lv, plus, look? }
+    equip: {},         // ช่อง → uid
+    nextUid: 1,
   };
 }
 
@@ -57,7 +62,26 @@ function migrate(data) {
     skillUntil: timeMap(d.skillUntil),
     lastSeen: num(d.lastSeen, Date.now()),
     stats: { taps: int(st.taps, 0), kills: int(st.kills, 0), bosses: int(st.bosses, 0) },
+    level: int(d.level, 1, 1),
+    exp: num(d.exp, 0),
+    items: [],
+    equip: {},
+    nextUid: int(d.nextUid, 1, 1),
   };
+
+  // อุปกรณ์: เก็บเฉพาะชิ้นที่ข้อมูลถูกต้อง
+  if (Array.isArray(d.items)) for (const it of d.items.slice(0, EQUIP.invMax + 10)) {
+    const x = obj(it);
+    if (!EQUIP.slots[x.slot] || !EQUIP.rarity[x.rarity]) continue;
+    const item = { uid: int(x.uid, 0, 1), slot: x.slot, rarity: x.rarity, lv: int(x.lv, 1, 1), plus: Math.min(EQUIP.enhanceMax, int(x.plus, 0)) };
+    if (x.slot === 'outfit') item.look = Math.min(EQUIP.outfits.length - 1, int(x.look, 0));
+    if (item.uid && !s.items.some(o => o.uid === item.uid)) s.items.push(item);
+  }
+  for (const [slot, uid] of Object.entries(obj(d.equip))) {
+    const it = s.items.find(o => o.uid === uid);
+    if (EQUIP.slots[slot] && it && it.slot === slot) s.equip[slot] = uid;
+  }
+  s.nextUid = Math.max(s.nextUid, ...s.items.map(o => o.uid + 1));
 
   if (int(d.v, 1) < 2) {
     // เวอร์ชัน 1: แมวจ้างด้วยเหรียญ เลเวลเดิมยกมาเป็นแมว ★1 และแถมเพชรเริ่มต้น
@@ -78,10 +102,13 @@ function migrate(data) {
   }
   if (!s.cats[STARTER]) s.cats[STARTER] = { lv: 1, star: 1, dupes: 0 };
 
-  // ทีม: เก็บเฉพาะ id ที่มีจริง ไม่ซ้ำ แล้วเติมแมวที่เหลือจนเต็ม
+  if (int(d.v, 1) < 3) s.level = Math.max(s.level, Math.min(59, Math.floor(s.maxStage * 0.6)));
+
+  // คู่หูที่เรียกอยู่: เก็บเฉพาะ id ที่มีจริง ไม่ซ้ำ ไม่เกินจำนวนช่องที่ปลดแล้ว
+  const slots = LEVEL.slotsAt.filter(l => s.level >= l).length;
   const team = Array.isArray(d.team) ? d.team.filter(id => s.cats[id]) : [];
   for (const c of CATS) if (s.cats[c.id] && !team.includes(c.id)) team.push(c.id);
-  s.team = [...new Set(team)].slice(0, BAL.teamSize);
+  s.team = [...new Set(team)].slice(0, slots);
   return s;
 }
 

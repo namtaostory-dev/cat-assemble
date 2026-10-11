@@ -52,6 +52,7 @@ export class Battle {
     this.shots = [];
     this.coins = [];
     this.poofs = [];
+    this.loot = [];
     this.cats = [];
     this.spawnT = 0;
     this.dotT = 0;
@@ -99,6 +100,8 @@ export class Battle {
     if (b) { this.poof(b); this.monsters = this.monsters.filter(m => m !== b); }
   }
   poof(m) { this.poofs.push({ x: m.x, y: m.y - m.h / 2, r: m.w / 2, t: 0 }); }
+  // ไอเทมดรอป: กล่องเรืองแสงสีตามความหายาก เด้งขึ้นแล้วบินเข้าปุ่ม "ตัวเรา"
+  lootFx(m, color) { this.loot.push({ x: m.x, y: m.y - m.h * 0.5, vy: -320, t: 0, color }); }
 
   damage(m, amount, src, crit) {
     if (!m || m.dead) return;
@@ -294,6 +297,15 @@ export class Battle {
       }
     }
     this.coins = this.coins.filter(c => !c.done);
+    for (const l of this.loot) {
+      l.t += dt;
+      if (l.t < 0.7) { l.vy += GRAV * 0.6 * dt; l.y += l.vy * dt; }
+      else {
+        const to = this.ui.bagTo, dx = to.x - l.x, dy = to.y - l.y, d = Math.hypot(dx, dy), v = 700 * dt;
+        if (d < v) l.done = true; else { l.x += dx / d * v; l.y += dy / d * v; }
+      }
+    }
+    this.loot = this.loot.filter(l => !l.done);
     for (const p of this.poofs) p.t += dt;
     this.poofs = this.poofs.filter(p => p.t < 0.4);
   }
@@ -331,6 +343,12 @@ export class Battle {
       c.restore();
     }
     for (const co of this.coins) if (COIN.complete) c.drawImage(COIN, co.x - 9, co.y - 18, 18, 18);
+    for (const l of this.loot) {
+      c.save(); c.translate(l.x, l.y); c.rotate(l.t * 4);
+      c.shadowColor = l.color; c.shadowBlur = 16; c.fillStyle = l.color; c.fillRect(-9, -9, 18, 18);
+      c.fillStyle = '#fff'; c.fillRect(-3, -9, 6, 18);
+      c.restore();
+    }
     for (const p of this.poofs) {
       c.save(); c.globalAlpha = 1 - p.t / 0.4; c.fillStyle = '#fff';
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; c.beginPath(); c.arc(p.x + Math.cos(a) * p.r * (0.5 + p.t * 2), p.y + Math.sin(a) * p.r * (0.5 + p.t * 2), 8 * (1 - p.t / 0.4), 0, 7); c.fill(); }
@@ -399,6 +417,8 @@ export class Battle {
     c.translate(h.x, h.y - bob);
     c.scale(h.face, 1);
     c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(0, bob + 2, 26, 5, 0, 0, 7); c.fill();
+    const look = this.game.outfitLook();   // ชุดที่สวม: ปรับโทนสีตัวเรา
+    if (look) c.filter = look.filter;
     // จุดหมุนของภาพ: ลำตัวอยู่ที่ x≈62 จากซ้ายในภาพกว้าง 190
     c.drawImage(f, -62 * w / 190, -hh + 4, w, hh);
     c.restore();

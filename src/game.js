@@ -1,5 +1,5 @@
 // กลไกเกมล้วนๆ ไม่แตะหน้าจอ: สูตร ดาเมจ ด่าน บอส การซื้อ กาชา ดาว สกิล
-import { BAL, CATS, RARITY, GACHA, STAR, SKILLS, ZONES } from './config.js';
+import { BAL, CATS, RARITY, GACHA, STAR, SKILLS, ZONES, LEVEL, EQUIP } from './config.js';
 
 export const hpOf = s =>
   BAL.hpBase * BAL.hpGrowth ** Math.min(s, BAL.hpLateStart) * BAL.hpLateGrowth ** Math.max(s - BAL.hpLateStart, 0);
@@ -14,6 +14,17 @@ export const swordDmgAt = lv => BAL.swordPerLevel * lv * BAL.mileMul ** Math.flo
 export const catDpsAt = (id, lv, star) =>
   RARITY[catById(id).rarity].dps * lv * BAL.mileMul ** Math.floor(lv / BAL.catMileStep) * starMul(star);
 export const nextMile = (lv, step) => (Math.floor(lv / step) + 1) * step;
+export const expNeed = lv => Math.ceil(LEVEL.expBase * lv ** LEVEL.expPow);
+export const slotsAtLevel = lv => LEVEL.slotsAt.filter(l => lv >= l).length;
+// ค่าพลังของอุปกรณ์หนึ่งชิ้น
+export function itemValue(it) {
+  const st = EQUIP.stats[EQUIP.slots[it.slot].stat];
+  return st.base * EQUIP.rarity[it.rarity].mul * (1 + st.scale * it.lv) * (1 + EQUIP.enhancePer * it.plus);
+}
+export function itemName(it) {
+  if (it.slot === 'outfit') return EQUIP.outfits[it.look || 0].name;
+  return `${EQUIP.slots[it.slot].name}${EQUIP.rarity[it.rarity].name}`;
+}
 
 // ราคารวมของการอัป n เลเวลจากเลเวล lv
 const geoSum = (base, g, lv, n) => base * g ** lv * (g ** n - 1) / (g - 1);
@@ -40,24 +51,49 @@ export class Game {
     return c ? this.power(c.id) : 0;
   }
 
+  // ค่าพลังรวมจากอุปกรณ์ที่สวมอยู่ (หน่วย %)
+  // คำนวณครั้งเดียวแล้วจำไว้ ล้างทิ้งเมื่อสวม/ถอด/ตีบวก
+  gear() {
+    if (this._gear) return this._gear;
+    const g = { dmg: 0, crit: 0, critDmg: 0, speed: 0, gold: 0, all: 0 };
+    for (const uid of Object.values(this.s.equip)) {
+      const it = this.s.items.find(o => o.uid === uid);
+      if (it) g[EQUIP.slots[it.slot].stat] += itemValue(it);
+    }
+    return (this._gear = g);
+  }
+  levelMul() { return 1 + LEVEL.dmgPerLevel * (this.s.level - 1); }
+  slots() { return slotsAtLevel(this.s.level); }
+  outfitLook() {
+    const it = this.s.items.find(o => o.uid === this.s.equip.outfit);
+    return it ? EQUIP.outfits[it.look || 0] : null;
+  }
   catDps(id) {
     const c = this.s.cats[id];
     if (!c || !this.inTeam(id)) return 0;
-    return catDpsAt(id, c.lv, c.star) * (this.active('lumi') ? 1 + this.power('lumi') : 1) * (1 + 0.1 * this.passive('teamDps'));
+    const g = this.gear();
+    return catDpsAt(id, c.lv, c.star) * (this.active('lumi') ? 1 + this.power('lumi') : 1) * (1 + 0.1 * this.passive('teamDps'))
+      * this.levelMul() * (1 + g.all / 100);
   }
   totalDps() { return this.s.team.reduce((sum, id) => sum + this.catDps(id), 0); }
   baseDps() {
     return this.s.team.reduce((sum, id) => { const c = this.s.cats[id]; return sum + catDpsAt(id, c.lv, c.star); }, 0);
   }
-  slashDamage() { return swordDmgAt(this.s.swordLv); }
+  slashDamage() {
+    const g = this.gear();
+    return swordDmgAt(this.s.swordLv) * this.levelMul() * (1 + g.dmg / 100) * (1 + g.all / 100);
+  }
   autoRate() {
     const base = BAL.speedBase + BAL.speedPerLevel * this.s.speedLv;
-    return base * (this.active('gale') ? 1 + 2 * this.power('gale') : 1);
+    return base * (1 + this.gear().speed / 100) * (this.active('gale') ? 1 + 2 * this.power('gale') : 1);
   }
   heroDps() { return this.slashDamage() * this.autoRate() * (1 + this.critChance() * (this.critMul() - 1)); }
-  critChance() { return BAL.baseCrit + 0.05 * this.passive('crit') + (this.active('volt') ? 0.3 * this.power('volt') : 0); }
-  critMul() { return BAL.critMul * (this.active('nox') ? 1 + 2 * this.power('nox') : 1); }
-  goldMul(now) { return this.active('rock', now) ? 1 + this.power('rock') : 1; }
+  critChance() {
+    const c = BAL.baseCrit + this.gear().crit / 100 + 0.05 * this.passive('crit') + (this.active('volt') ? 0.3 * this.power('volt') : 0);
+    return Math.min(0.75, c);
+  }
+  critMul() { return BAL.critMul * (1 + this.gear().critDmg / 100) * (this.active('nox') ? 1 + 2 * this.power('nox') : 1); }
+  goldMul(now) { return (1 + this.gear().gold / 100) * (this.active('rock', now) ? 1 + this.power('rock') : 1); }
   bossTimeLimit() { return isBigBoss(this.s.stage) ? BAL.bigBossTime : BAL.bossTime; }
   gems() { return this.s.gemsFree + this.s.gemsPaid; }
 
@@ -115,8 +151,69 @@ export class Game {
     }
     s.gold += gold;
     s.gemsFree += gems;
-    this.hooks.onKill?.(e, gold, gems);
+    const stageAtKill = e.boss ? s.stage - 1 : s.stage;
+    this.gainExp(LEVEL.expPerMonster(stageAtKill) * (e.boss ? LEVEL.expBossMul : 1));
+    const drop = e.boss || Math.random() < EQUIP.dropRate ? this.rollItem(stageAtKill, e.boss) : null;
+    this.hooks.onKill?.(e, gold, gems, drop);
     if (e.boss) this.hooks.onStage?.(s.stage);
+  }
+
+  // ---------- เลเวล ----------
+  gainExp(n) {
+    const s = this.s;
+    s.exp += n;
+    let up = 0;
+    while (s.exp >= expNeed(s.level)) { s.exp -= expNeed(s.level); s.level++; up++; }
+    if (up) this.hooks.onLevel?.(s.level, slotsAtLevel(s.level) > slotsAtLevel(s.level - up));
+  }
+
+  // ---------- อุปกรณ์ ----------
+  rollItem(stage, boss) {
+    const s = this.s;
+    if (s.items.length >= EQUIP.invMax) return null;   // กระเป๋าเต็ม
+    const table = boss ? EQUIP.bossRarity : EQUIP.dropRarity;
+    let r = Math.random(), rarity = 'C';
+    for (const [k, p] of Object.entries(table)) { if (r < p) { rarity = k; break; } r -= p; }
+    const slots = Object.keys(EQUIP.slots);
+    // ชุดหายากกว่าอุปกรณ์อื่นครึ่งหนึ่ง
+    let slot = slots[Math.floor(Math.random() * slots.length)];
+    if (slot === 'outfit' && Math.random() < 0.5) slot = slots[Math.floor(Math.random() * (slots.length - 1))];
+    const it = { uid: s.nextUid++, slot, rarity, lv: stage, plus: 0 };
+    if (slot === 'outfit') it.look = Math.floor(Math.random() * EQUIP.outfits.length);
+    s.items.push(it);
+    return it;
+  }
+  item(uid) { return this.s.items.find(o => o.uid === uid); }
+  equipItem(uid) {
+    const it = this.item(uid);
+    if (!it) return false;
+    this.s.equip[it.slot] = uid;
+    this._gear = null;
+    return true;
+  }
+  unequip(slot) { delete this.s.equip[slot]; this._gear = null; }
+  isEquipped(uid) { return Object.values(this.s.equip).includes(uid); }
+  salvageValue(it) { return Math.ceil(goldOf(it.lv) * 5 * EQUIP.rarity[it.rarity].mul * (1 + it.plus * 0.5)); }
+  salvage(uid) {
+    const it = this.item(uid);
+    if (!it || this.isEquipped(uid)) return 0;
+    const g = this.salvageValue(it);
+    this.s.items = this.s.items.filter(o => o !== it);
+    this.s.gold += g;
+    return g;
+  }
+  enhanceCost(it) { return Math.ceil(goldOf(it.lv) * 20 * EQUIP.rarity[it.rarity].mul * 1.6 ** it.plus); }
+  enhanceRate(it) { return EQUIP.enhanceRate[it.plus] ?? 0; }
+  // คืน 'max' | 'gold' | 'ok' | 'fail'
+  enhance(uid) {
+    const it = this.item(uid);
+    if (!it) return null;
+    if (it.plus >= EQUIP.enhanceMax) return 'max';
+    const cost = this.enhanceCost(it);
+    if (this.s.gold < cost) return 'gold';
+    this.s.gold -= cost;
+    if (Math.random() < this.enhanceRate(it)) { it.plus++; this._gear = null; return 'ok'; }
+    return 'fail';
   }
 
   // dt เป็นวินาที เรียกทุกเฟรม
@@ -188,7 +285,7 @@ export class Game {
     const owned = s.cats[id];
     if (!owned) {
       s.cats[id] = { lv: 1, star: 1, dupes: 0 };
-      if (s.team.length < BAL.teamSize) s.team.push(id);
+      if (s.team.length < this.slots()) s.team.push(id);
       this.hooks.onNewCat?.(id);
       return { id, rarity, isNew: true };
     }
@@ -210,7 +307,7 @@ export class Game {
       t.splice(t.indexOf(id), 1);
       return 'out';
     }
-    if (t.length >= BAL.teamSize) return 'full';
+    if (t.length >= this.slots()) return 'full';
     t.push(id);
     return 'in';
   }
