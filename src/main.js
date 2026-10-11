@@ -79,9 +79,9 @@ function bumpCombo(x, y) {
 function popOn(m, amount, cls, key) {
   const off = { hero: -12, cat: 26, dot: 6 }[key] || 0;
   const row = stackRow(m.id + key);
-  const y = Math.max(46, m.y - m.h - 30 - row * (cls === 'crit' ? 30 : 25));
-  popText(fmtDmg(amount), m.x + off + (Math.random() * 8 - 4), y, cls);
-  if (key === 'hero') bumpCombo(m.x + 70, Math.max(46, m.y - m.h - 10));
+  const y = m.y - m.h - 30 - row * (cls === 'crit' ? 30 : 25);
+  popText(fmtDmg(amount), battle.sx(m.x) + off + (Math.random() * 8 - 4), battle.sy(y), cls);
+  if (key === 'hero') bumpCombo(battle.sx(m.x) + 70, battle.sy(Math.max(46, m.y - m.h - 10)));
 }
 function boomFx(x, y, color) {
   const b = document.createElement('div');
@@ -112,8 +112,8 @@ function lvupFx(lv, newSlot) {
   const d = document.createElement('div');
   d.className = 'lvup';
   d.innerHTML = `LEVEL UP! ${lv}` + (newSlot ? `<small>ปลดช่องคู่หูใหม่! เรียกได้ ${slotsAtLevel(lv)} ตัว</small>` : '');
-  d.style.left = battle.hero.x + 'px';
-  d.style.top = Math.max(50, battle.hero.y - 150) + 'px';
+  d.style.left = battle.sx(battle.hero.x) + 'px';
+  d.style.top = Math.max(50, battle.sy(battle.hero.y) - 150) + 'px';
   addFx(d, 1400);
 }
 function flash(color) {
@@ -141,8 +141,8 @@ function startGame(s) {
   state = s;
   game = new Game(state, {
     onKill(e, gold, gems, drop) {
-      popText('+' + fmt(gold), e.x, Math.max(40, e.y - e.h - 6), 'gold');
-      if (gems) popText('+' + gems + ' เพชร', e.x, Math.max(40, e.y - e.h - 30), 'gold');
+      popText('+' + fmt(gold), battle.sx(e.x), battle.sy(e.y - e.h - 6), 'gold');
+      if (gems) popText('+' + gems + ' เพชร', battle.sx(e.x), battle.sy(e.y - e.h - 30), 'gold');
       if (drop) {
         battle.lootFx(e, EQUIP.rarity[drop.rarity].color);
         if (drop.rarity !== 'C') toast(`ได้${itemName(drop)} (${drop.rarity}) Lv ${drop.lv}`, 1800);
@@ -171,6 +171,7 @@ function startGame(s) {
   if (!battle) battle = new Battle($('stage'), game, ui);
   battle.game = game;
   battle.reset();
+  battle.updateCam(0, true);
   onTeamChanged();
   fit();
   updateHud();

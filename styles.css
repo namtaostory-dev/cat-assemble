@@ -12,8 +12,8 @@ button { font:inherit; color:inherit; }
 /* ฉากออกแบบไว้ที่ 844×390 (แนวนอน) แล้วย่อ/ขยายให้พอดีจอ (ดู fit() ใน main.js)
    ปุ่มและข้อมูลอยู่ในกรอบนี้ ส่วนฉากหลังและแผ่นต่างๆ ขยายเลยกรอบออกไปให้เต็มขอบจอ */
 #game { position:absolute; left:0; top:0; width:844px; height:390px; overflow:visible; transform-origin:0 0; }
-.scene { position:absolute; left:-400px; right:-400px; top:-300px; bottom:-300px; background:#61aad3 url(assets/scenes/ruins.png) center 84px / auto 860px no-repeat; }
-.scene::after { content:''; position:absolute; left:0; right:0; top:600px; bottom:0; background:linear-gradient(#7a8a52 0 6px, #5b5a3e 6px 14px, #3b3a2e 14px); }
+.scene { position:absolute; left:-400px; right:-400px; top:-300px; bottom:-300px; background:linear-gradient(#5fb2ea 0 300px, #6fb6e8 520px, #2f5a2e 760px, #1f2a1e 100%); }
+
 .stage { position:absolute; left:0; top:0; width:844px; height:390px; z-index:2; pointer-events:none; }
 .battle { position:absolute; inset:0; z-index:3; cursor:pointer; touch-action:none; }
 .stroke { -webkit-text-stroke:4px var(--ink); paint-order:stroke fill; }

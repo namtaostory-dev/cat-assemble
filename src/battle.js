@@ -3,21 +3,37 @@
 import { BAL } from './config.js';
 import { catById, itemName } from './game.js';
 
-export const W = 844, H = 390;
-const GROUND = 300;   // พื้นอยู่เหนือแถบปุ่มด้านล่าง มอนสเตอร์บนพื้นจึงไม่โดนบัง
-// แท่นแบบทะลุขึ้นได้ (ยืนได้เมื่อตกลงมาจากข้างบน)
+const img = src => { const i = new Image(); i.src = src; return i; };
+export const W = 844, H = 390;          // ขนาดจอ (หน่วยฉาก)
+
+// แผนที่ป่าซากปรักหักพัง: ภาพ 1024×572 ขยาย ×1.6 → โลกกว้าง 1638×915 กล้องเลื่อนตามตัวเรา
+const MAP_SCALE = 1.6;
+export const WW = Math.round(1024 * MAP_SCALE), WH = Math.round(572 * MAP_SCALE);
+const MAP = img('assets/scenes/forest.webp');
+// แท่นวัดจากภาพ (พิกัดในภาพ x1, x2, y ของขอบหญ้า) floor = พื้นที่กระโดดลงทะลุไม่ได้
+const P = (x1, x2, y, floor = false) => ({ x1: x1 * MAP_SCALE, x2: x2 * MAP_SCALE, y: y * MAP_SCALE, ground: floor });
 const PLATFORMS = [
-  { x1: -40, x2: W + 40, y: GROUND, ground: true },
-  { x1: 60, x2: 320, y: 224 },
-  { x1: 524, x2: 784, y: 224 },
-  { x1: 292, x2: 552, y: 150 },
+  // พื้นล่าง
+  P(0, 215, 473, true), P(215, 717, 523, true), P(717, 1024, 519, true),
+  // เนินและหินชั้นล่าง
+  P(212, 328, 450), P(579, 701, 452), P(530, 602, 496), P(919, 1006, 468),
+  // บ้านเห็ดม่วง และเกาะขวา
+  P(100, 212, 372), P(845, 1006, 362),
+  // แท่นลอยเล็ก
+  P(276, 315, 357), P(328, 366, 357), P(453, 491, 375), P(530, 566, 375), P(579, 614, 357),
+  P(655, 694, 357), P(707, 742, 375), P(781, 819, 375),
+  // ชั้นกลาง
+  P(75, 215, 257), P(225, 505, 264), P(645, 895, 258),
+  // แท่นห้อยเล็ก และชั้นบนสุด
+  P(478, 512, 187), P(148, 352, 110), P(378, 414, 120), P(425, 745, 110),
 ];
-const GRAV = 1900, JUMP_V = -720, WALK = 190;
+const GROUND = PLATFORMS[0].y;   // พื้นจุดเริ่ม (ซ้ายล่าง)
+const GRAV = 1900, JUMP_V = -1000, WALK = 210;   // กระโดดได้สูงราว 260 หน่วย
 const REACH = 70;            // ระยะฟันของตัวเรา
 const SLASH_BOX = 120;       // ความกว้างของดาบที่โดนหลายตัวพร้อมกัน
-const MAX_MONSTERS = 6;
+const MAX_MONSTERS = 10;
+const REACH_UP = 255;   // แท่นที่สูงกว่านี้กระโดดไม่ถึง
 
-const img = src => { const i = new Image(); i.src = src; return i; };
 const HERO = [1, 2, 3, 4].map(n => img(`assets/hero/slash${n}.png`));
 const GOLEM = img('assets/enemies/golem.png');
 const COIN = img('assets/ui/coin.png');
@@ -47,7 +63,8 @@ export class Battle {
   }
 
   reset() {
-    this.hero = { x: 140, y: GROUND, vy: 0, face: 1, plat: PLATFORMS[0], attackCD: 0, anim: 0, frame: 0, stuck: 0, drop: 0, walking: false, lastX: 140 };
+    this.cam = { x: 0, y: WH - H };
+    this.hero = { x: 120, y: GROUND, vy: 0, face: 1, plat: PLATFORMS[0], attackCD: 0, anim: 0, frame: 0, stuck: 0, drop: 0, walking: false, lastX: 140 };
     this.monsters = [];
     this.shots = [];
     this.coins = [];
@@ -75,9 +92,9 @@ export class Battle {
 
   // ---------- มอนสเตอร์ ----------
   spawnMonster() {
-    const plats = PLATFORMS.filter(p => !p.ground || Math.random() < 0.5);
+    const plats = PLATFORMS.filter(p => p.x2 - p.x1 >= 100);
     const p = plats[Math.floor(Math.random() * plats.length)];
-    const x1 = Math.max(p.x1 + 30, 30), x2 = Math.min(p.x2 - 30, W - 30);
+    const x1 = Math.max(p.x1 + 30, 30), x2 = Math.min(p.x2 - 30, WW - 30);
     let x = x1 + Math.random() * (x2 - x1);
     if (Math.abs(x - this.hero.x) < 90 && Math.abs(p.y - this.hero.y) < 10) x = x < W / 2 ? x2 : x1;
     const hp = this.game.monsterHp();
@@ -90,8 +107,10 @@ export class Battle {
     const big = this.game.s.stage % BAL.bigBossEvery === 0;
     const hp = this.game.bossHp();
     const w = big ? 230 : 200, h = w * 370 / 406;
-    const x = this.hero.x < W / 2 ? W - 190 : 190;
-    this.monsters.push({ id: nextId++, x, y: GROUND, plat: PLATFORMS[0], dir: -1, speed: 18, w, h, hp, max: hp, boss: true, big,
+    // บอสเกิดบนพื้นล่างที่กว้างที่สุดใกล้ตัวเรา
+    const floor = PLATFORMS.filter(p => p.ground).sort((a, b) => (b.x2 - b.x1) - (a.x2 - a.x1))[0];
+    const x = Math.min(floor.x2 - w / 2, Math.max(floor.x1 + w / 2, this.hero.x + 220));
+    this.monsters.push({ id: nextId++, x, y: floor.y, plat: floor, dir: -1, speed: 18, w, h, hp, max: hp, boss: true, big,
       name: this.game.monsterName(true), hue: this.game.zoneHue(), hitT: 0, spawnT: 0.5 });
     this.game.startBoss();
   }
@@ -142,7 +161,7 @@ export class Battle {
     const hits = this.monsters.filter(m => this.inSlash(m)).slice(0, 3);
     if (hits.length) {
       hits.forEach((m, i) => { const r = i === 0 ? roll : this.game.rollSlash(); this.damage(m, r.amount, src, r.crit); });
-      this.ui.slashFx(h.x + h.face * 60, h.y - 34, h.face, roll.crit);
+      this.ui.slashFx(this.sx(h.x + h.face * 60), this.sy(h.y - 34), h.face, roll.crit);
     } else {
       const t = this.target();
       if (t) this.shots.push({ wave: true, x: h.x + h.face * 30, y: h.y - 34, to: t, amount: roll.amount, crit: roll.crit, src, color: '#bff4ff' });
@@ -173,7 +192,7 @@ export class Battle {
         else h.face = Math.sign(dx) || h.face;
       } else if (t.y < h.y) {
         // เป้าอยู่สูงกว่า: เดินไปใต้แท่นที่กระโดดถึงซึ่งใกล้เป้าที่สุด แล้วกระโดด
-        const ups = PLATFORMS.filter(p => p.y < h.y - 10 && p.y >= h.y - 130);
+        const ups = PLATFORMS.filter(p => p.y < h.y - 10 && p.y >= h.y - REACH_UP && p.x2 - p.x1 > 30);
         const p = ups.sort((a, b) => Math.abs((a.x1 + a.x2) / 2 - t.x) - Math.abs((b.x1 + b.x2) / 2 - t.x))[0];
         if (p) {
           const want = Math.min(Math.max(t.x, p.x1 + 40), p.x2 - 40);
@@ -183,13 +202,13 @@ export class Battle {
       } else {
         // เป้าอยู่ต่ำกว่า: เดินไปทางเป้า แล้วกระโดดลงทะลุแท่นที่ยืนอยู่
         const dx = t.x - h.x;
-        if (Math.abs(dx) > 40 && !h.plat.ground) dir = Math.sign(dx);
+        if (Math.abs(dx) > 40) dir = Math.sign(dx);
         if (!h.plat.ground && (Math.abs(dx) < 140 || h.x < h.plat.x1 + 30 || h.x > h.plat.x2 - 30)) { h.drop = 0.25; h.plat = null; h.vy = 60; }
       }
     }
     if (dir) h.face = dir;
     h.walking = !!dir;
-    h.x = Math.min(W - 20, Math.max(20, h.x + dir * WALK * dt));
+    h.x = Math.min(WW - 20, Math.max(20, h.x + dir * WALK * dt));
 
     // ฟันอัตโนมัติเมื่อมีเป้าในระยะ
     if (t && h.attackCD <= 0 && this.monsters.some(m => this.inSlash(m))) {
@@ -213,14 +232,27 @@ export class Battle {
       h.plat = null; h.vy = 1;   // เดินตกขอบ
     }
 
+    if (h.y > WH + 100) { h.x = 120; h.y = GROUND; h.vy = 0; h.plat = PLATFORMS[0]; }
     // ติดอยู่นานเกินไป: วาร์ปไปใกล้เป้า
     h.stuck = t && Math.abs(h.x - h.lastX) < 0.5 && !this.monsters.some(m => this.inSlash(m)) ? h.stuck + dt : 0;
     h.lastX = h.x;
     if (h.stuck > 2.5 && t) {
       this.poofs.push({ x: h.x, y: h.y - 30, r: 30, t: 0 });
-      h.x = Math.min(W - 30, Math.max(30, t.x - 60 * (t.x > W / 2 ? 1 : -1)));
+      h.x = Math.min(WW - 30, Math.max(30, t.x - 60 * (t.x > WW / 2 ? 1 : -1)));
       h.y = t.y; h.vy = 0; h.plat = this.standingOn(h) || PLATFORMS[0]; h.y = h.plat.y; h.stuck = 0;
     }
+  }
+
+  // ---------- กล้อง ----------
+  sx(x) { return x - this.cam.x; }
+  sy(y) { return y - this.cam.y; }
+  updateCam(dt, snap) {
+    const h = this.hero;
+    const tx = Math.min(WW - W, Math.max(0, h.x - W / 2));
+    const ty = Math.min(WH - H, Math.max(0, h.y - H * 0.62));
+    const k = snap ? 1 : Math.min(1, dt * 5);
+    this.cam.x += (tx - this.cam.x) * k;
+    this.cam.y += (ty - this.cam.y) * k;
   }
 
   // ---------- อัปเดตทั้งฉาก ----------
@@ -238,7 +270,8 @@ export class Battle {
       m.spawnT = Math.max(0, m.spawnT - dt);
       if (m.dead) { m.deadT += dt; continue; }
       m.x += m.dir * m.speed * dt;
-      const lo = Math.max(m.plat.x1 + m.w / 2, m.w / 2), hi = Math.min(m.plat.x2 - m.w / 2, W - m.w / 2);
+      const lo = Math.max(m.plat.x1 + m.w / 4, m.w / 2), hi = Math.min(m.plat.x2 - m.w / 4, WW - m.w / 2);
+      if (lo >= hi) { m.x = (m.plat.x1 + m.plat.x2) / 2; continue; }
       if (m.x < lo) { m.x = lo; m.dir = 1; }
       if (m.x > hi) { m.x = hi; m.dir = -1; }
       if (Math.random() < dt * 0.3) m.dir *= -1;
@@ -246,11 +279,12 @@ export class Battle {
     this.monsters = this.monsters.filter(m => !m.dead || m.deadT < 0.35);
 
     this.updateHero(dt);
+    this.updateCam(dt);
 
     // คู่หู: ยืนเรียงตามหลังตัวเรา (ตัวใหญ่เท่าตัวเรา) แล้วยิงลูกพลังใส่เป้า
     const h = this.hero, t = this.target();
     this.cats.forEach((c, i) => {
-      const tx = Math.min(W - 30, Math.max(30, h.x - h.face * (62 + i * 56))), ty = h.y + Math.sin(performance.now() / 300 + i) * 2;
+      const tx = Math.min(WW - 30, Math.max(30, h.x - h.face * (62 + i * 56))), ty = h.y + Math.sin(performance.now() / 300 + i) * 2;
       c.x += (tx - c.x) * Math.min(1, dt * 5);
       c.y += (ty - c.y) * Math.min(1, dt * 5);
       c.charge += dt / BAL.catPeriod;
@@ -268,7 +302,7 @@ export class Battle {
       s.to = tgt;
       const tx = tgt.x, ty = tgt.y - tgt.h * 0.55;
       const dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy), v = (s.wave ? 720 : 620) * dt;
-      if (d <= v) { s.done = true; this.damage(tgt, s.amount, s.src, s.crit); this.ui.boomFx(tx, ty, s.color); }
+      if (d <= v) { s.done = true; this.damage(tgt, s.amount, s.src, s.crit); this.ui.boomFx(this.sx(tx), this.sy(ty), s.color); }
       else { s.x += dx / d * v; s.y += dy / d * v; s.ang = Math.atan2(dy, dx); }
     }
     this.shots = this.shots.filter(s => !s.done);
@@ -291,7 +325,7 @@ export class Battle {
         if (c.y > c.ground) { c.y = c.ground; c.vy *= -0.4; c.vx *= 0.6; }
         if (c.t > 0.7) c.fly = true;
       } else {
-        const to = this.ui.coinTo, dx = to.x - c.x, dy = to.y - c.y, d = Math.hypot(dx, dy), v = 900 * dt;
+        const to = this.ui.coinTo, dx = to.x + this.cam.x - c.x, dy = to.y + this.cam.y - c.y, d = Math.hypot(dx, dy), v = 900 * dt;
         if (d < v) c.done = true; else { c.x += dx / d * v; c.y += dy / d * v; }
       }
     }
@@ -300,7 +334,7 @@ export class Battle {
       l.t += dt;
       if (l.t < 0.7) { l.vy += GRAV * 0.6 * dt; l.y += l.vy * dt; }
       else {
-        const to = this.ui.bagTo, dx = to.x - l.x, dy = to.y - l.y, d = Math.hypot(dx, dy), v = 700 * dt;
+        const to = this.ui.bagTo, dx = to.x + this.cam.x - l.x, dy = to.y + this.cam.y - l.y, d = Math.hypot(dx, dy), v = 700 * dt;
         if (d < v) l.done = true; else { l.x += dx / d * v; l.y += dy / d * v; }
       }
     }
@@ -321,9 +355,8 @@ export class Battle {
     c.setTransform(this.k, 0, 0, this.k, 0, 0);
     c.clearRect(0, 0, W, H);
     c.imageSmoothingEnabled = true;
-
-    this.drawGround();
-    for (const p of PLATFORMS) if (!p.ground) this.drawPlatform(p);
+    c.translate(-Math.round(this.cam.x * 2) / 2, -Math.round(this.cam.y * 2) / 2);
+    if (MAP.complete) c.drawImage(MAP, 0, 0, WW, WH);
 
     const ms = [...this.monsters].sort((a, b) => (b.boss ? 1 : 0) - (a.boss ? 1 : 0));
     for (const m of ms) this.drawMonster(m);
@@ -354,37 +387,6 @@ export class Battle {
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; c.beginPath(); c.arc(p.x + Math.cos(a) * p.r * (0.5 + p.t * 2), p.y + Math.sin(a) * p.r * (0.5 + p.t * 2), 8 * (1 - p.t / 0.4), 0, 7); c.fill(); }
       c.restore();
     }
-  }
-
-  // แท่นหินก่อ: ก้อนหินเรียง ตะไคร่ด้านบน เถาวัลย์ห้อย
-  drawPlatform(p) {
-    const c = this.ctx, w = p.x2 - p.x1, top = p.y - 2, hgt = 26;
-    c.save();
-    c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(p.x1 + w / 2, p.y + 44, w * 0.42, 7, 0, 0, 7); c.fill();
-    c.fillStyle = '#8c8674'; c.fillRect(p.x1, top, w, hgt);
-    c.strokeStyle = '#5e5a4c'; c.lineWidth = 2;
-    for (let r = 0; r < 2; r++) for (let x = p.x1 + (r ? 18 : 0); x < p.x2; x += 36) {
-      c.strokeRect(x + 1, top + r * 13 + 1, Math.min(36, p.x2 - x) - 2, 12);
-    }
-    c.fillStyle = '#6a6452'; c.fillRect(p.x1, top + hgt - 4, w, 4);
-    c.fillStyle = '#6fa043'; c.beginPath(); c.roundRect(p.x1 - 3, top - 4, w + 6, 8, 4); c.fill();
-    c.fillStyle = '#8cc25a'; for (let x = p.x1; x < p.x2; x += 14) c.fillRect(x, top - 6, 6, 4);
-    c.strokeStyle = '#4f8a2e'; c.lineWidth = 2;
-    for (let x = p.x1 + 20; x < p.x2 - 10; x += 47) {
-      const len = 14 + ((x * 7) % 22);
-      c.beginPath(); c.moveTo(x, top + hgt); c.quadraticCurveTo(x + 5, top + hgt + len / 2, x - 2, top + hgt + len); c.stroke();
-    }
-    c.restore();
-  }
-  drawGround() {
-    const c = this.ctx, y = GROUND;
-    c.save();
-    c.fillStyle = '#a49a7e'; c.fillRect(0, y, W, 18);
-    c.strokeStyle = '#6e6652'; c.lineWidth = 2;
-    for (let x = 0; x < W; x += 40) c.strokeRect(x + 1, y + 1, 38, 16);
-    c.fillStyle = '#6fa043'; c.fillRect(0, y - 3, W, 5);
-    c.fillStyle = '#8cc25a'; for (let x = 4; x < W; x += 22) c.fillRect(x, y - 6, 8, 4);
-    c.restore();
   }
 
   drawMonster(m) {
