@@ -63,26 +63,11 @@ function popText(text, x, y, cls) {
   d.style.top = y + 'px';
   addFx(d, 900);
 }
-// COMBO: ตัวเราฟันต่อเนื่องภายใน 1.2 วิ นับเพิ่มเรื่อยๆ
-let combo = 0, comboT = 0, comboEl = null;
-function bumpCombo(x, y) {
-  const now = performance.now();
-  combo = now - comboT < 1200 ? combo + 1 : 1;
-  comboT = now;
-  if (combo < 2) return;
-  if (comboEl) comboEl.remove();
-  comboEl = document.createElement('div');
-  comboEl.className = 'combo';
-  comboEl.innerHTML = `COMBO <b>${combo}</b>`;
-  comboEl.style.left = x + 'px'; comboEl.style.top = y + 'px';
-  fx.appendChild(comboEl);
-}
 function popOn(m, amount, cls, key) {
   const off = { hero: -12, cat: 26, dot: 6 }[key] || 0;
   const row = stackRow(m.id + key);
   const y = m.y - m.h - 30 - row * (cls === 'crit' ? 30 : 25);
   popText(fmtDmg(amount), battle.sx(m.x) + off + (Math.random() * 8 - 4), battle.sy(y), cls);
-  if (key === 'hero') bumpCombo(battle.sx(m.x) + 70, battle.sy(Math.max(46, m.y - m.h - 10)));
 }
 function boomFx(x, y, color) {
   const b = document.createElement('div');

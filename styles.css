@@ -336,6 +336,3 @@ button { font:inherit; color:inherit; }
 .sk.lock { font-size:11px; }
 /* CRIT และ COMBO */
 .dmg .crittag { position:absolute; left:-30px; top:-14px; font-size:15px; color:#ffe27a; -webkit-text-stroke:4px #5a2a00; paint-order:stroke fill; background:none; }
-.combo { position:absolute; font-family:'Lilita One', sans-serif; font-size:20px; color:#fff; -webkit-text-stroke:5px #1d2a44; paint-order:stroke fill; transform:translateX(-50%); animation:combo .9s ease-out forwards; pointer-events:none; white-space:nowrap; }
-.combo b { color:#ffe27a; font-size:26px; font-weight:400; }
-@keyframes combo { 0% { transform:translateX(-50%) scale(1.5); opacity:0; } 15% { transform:translateX(-50%) scale(1); opacity:1; } 70% { opacity:1; } 100% { opacity:0; } }
