@@ -1,5 +1,5 @@
 // กลไกเกมล้วนๆ ไม่แตะหน้าจอ: สูตร ดาเมจ ด่าน บอส การซื้อ กาชา ดาว สกิล
-import { BAL, CATS, RARITY, GACHA, STAR, PASSIVES, WEAPONS, WSKILLS, WSKILL_PLUS, ZONES, LEVEL, EQUIP } from './config.js';
+import { BAL, CATS, RARITY, GACHA, STAR, PASSIVES, WEAPONS, WSKILLS, WSKILL_PLUS, ZONES, LEVEL, EQUIP, POTIONS, POTION_MAX_MIN, OUTFIT_PRICE, BREADS } from './config.js';
 
 export const hpOf = s =>
   BAL.hpBase * BAL.hpGrowth ** Math.min(s, BAL.hpLateStart) * BAL.hpLateGrowth ** Math.max(s - BAL.hpLateStart, 0);
@@ -52,7 +52,12 @@ export class Game {
   }
   // บัฟจากสกิล (เช่นพรแห่งแสง) ยังทำงานอยู่ไหม
   buffed(id, now = Date.now()) { return (this.s.skillUntil[id] || 0) > now; }
-  buffDmg(now) { return WSKILLS.reduce((m, k) => m * (k.buff && this.buffed(k.id, now) ? 1 + k.buff.dmg : 1), 1); }
+  buffDmg(now = Date.now()) {
+    return WSKILLS.reduce((m, k) => m * (k.buff && this.buffed(k.id, now) ? 1 + k.buff.dmg : 1), 1) * this.potionMul('dmg', now);
+  }
+  // ยาจากตลาด: ตัวคูณถ้ายังไม่หมดเวลา
+  potionLeft(id, now = Date.now()) { return Math.max(0, ((this.s.potions[id] || 0) - now) / 1000); }
+  potionMul(id, now) { return this.potionLeft(id, now) > 0 ? POTIONS[id].mul : 1; }
 
   // ค่าพลังรวมจากอุปกรณ์ที่สวมอยู่ (หน่วย %)
   // คำนวณครั้งเดียวแล้วจำไว้ ล้างทิ้งเมื่อสวม/ถอด/ตีบวก
@@ -87,7 +92,7 @@ export class Game {
   }
   autoRate() {
     const base = BAL.speedBase + BAL.speedPerLevel * this.s.speedLv;
-    return base * (1 + this.gear().speed / 100) * (1 + this.passive('speed'));
+    return base * (1 + this.gear().speed / 100) * (1 + this.passive('speed')) * this.potionMul('speed');
   }
   heroDps() { return this.slashDamage() * this.autoRate() * (1 + this.critChance() * (this.critMul() - 1)); }
   critChance() {
@@ -95,7 +100,7 @@ export class Game {
     return Math.min(0.75, c);
   }
   critMul() { return BAL.critMul * (1 + this.gear().critDmg / 100 + this.passive('critDmg')); }
-  goldMul() { return (1 + this.gear().gold / 100) * (1 + this.passive('gold')); }
+  goldMul() { return (1 + this.gear().gold / 100) * (1 + this.passive('gold')) * this.potionMul('gold'); }
   bossTimeLimit() { return (isBigBoss(this.s.stage) ? BAL.bigBossTime : BAL.bossTime) + this.passive('bossTime'); }
   gems() { return this.s.gemsFree + this.s.gemsPaid; }
 
@@ -381,6 +386,44 @@ export class Game {
     this.s.skillReadyAt[k.id] = now + this.skillCd(k) * 1000;
     if (k.buff) this.s.skillUntil[k.id] = now + k.buff.dur * 1000;
     return true;
+  }
+
+  // ---------- ตลาด ----------
+  shopPrice(n) { return Math.ceil(goldOf(this.s.maxStage) * n); }
+  // คืน 'ok' | 'gold' | 'max'
+  buyPotion(id) {
+    const p = POTIONS[id], now = Date.now(), cost = this.shopPrice(p.price);
+    const left = this.potionLeft(id, now);
+    if (left + p.min * 60 > POTION_MAX_MIN * 60) return 'max';
+    if (this.s.gold < cost) return 'gold';
+    this.s.gold -= cost;
+    this.s.potions[id] = now + (left + p.min * 60) * 1000;
+    return 'ok';
+  }
+  // คืน item | 'gold' | 'full'
+  buyOutfit(look) {
+    const cost = this.shopPrice(OUTFIT_PRICE);
+    if (this.s.items.length >= EQUIP.invMax) return 'full';
+    if (this.s.gold < cost) return 'gold';
+    this.s.gold -= cost;
+    const it = { uid: this.s.nextUid++, slot: 'outfit', rarity: 'R', lv: this.s.maxStage, plus: 0, look };
+    this.s.items.push(it);
+    return it;
+  }
+  breadExp(b) { return Math.ceil(expNeed(this.s.level) * b.exp); }
+  // คืน EXP ที่ได้ | 'gold' | 'gems'
+  buyBread(id) {
+    const b = BREADS.find(x => x.id === id);
+    if (!b) return null;
+    if (b.gems) { if (!this.spendGems(b.gems)) return 'gems'; }
+    else {
+      const cost = this.shopPrice(b.price);
+      if (this.s.gold < cost) return 'gold';
+      this.s.gold -= cost;
+    }
+    const exp = this.breadExp(b);
+    this.gainExp(exp);
+    return exp;
   }
 
   // ---------- ออฟไลน์ ----------

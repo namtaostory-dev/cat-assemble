@@ -344,3 +344,30 @@ button.sklabel.on { color:#fff; background:linear-gradient(#4fc46a, #2b8a43); bo
 .itemSkills { margin:6px 0 0; font-size:12px; line-height:1.5; color:#cfd8ec; }
 .itemSkills b { color:#ffe27a; font-weight:600; }
 .itemSkills .off { opacity:.5; }
+
+/* ---------- ตลาด ---------- */
+.menu { gap:4px; }
+.tile { width:56px; }
+.tile .ico img.mkico { width:46px; height:46px; image-rendering:pixelated; }
+.hud-buffs { position:absolute; left:12px; bottom:86px; display:flex; gap:6px; z-index:5; pointer-events:none; font-size:12px; font-weight:600; }
+.hud-buffs span { background:rgba(22,32,54,.85); border:2px solid #3b4d74; border-radius:10px; padding:1px 6px; }
+.market { position:absolute; z-index:6; overflow:hidden; background:#1a1410; }
+.mk-stage { position:absolute; }
+.mk-bg { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
+.mk-shops { position:absolute; inset:0; }
+.mk-shop { position:absolute; border:0; background:none; padding:0; cursor:pointer; border-radius:12px; }
+.mk-shop:active, .mk-shop.on { background:rgba(255,226,122,.18); box-shadow:inset 0 0 0 2px rgba(255,226,122,.6); }
+.mk-tag { position:absolute; left:50%; top:-8px; transform:translateX(-50%); white-space:nowrap; font-size:12px; font-weight:600; color:#2a1a00; background:#ffe27a; border:2px solid #5a3a10; border-radius:10px; padding:0 8px; animation:mkbob 1.6s ease-in-out infinite; }
+@keyframes mkbob { 50% { transform:translate(-50%, -4px); } }
+.mk-hero, .mk-cat { position:absolute; transform:translateX(-50%); transition:left linear; pointer-events:none; }
+.mk-hero img { display:block; height:100%; image-rendering:pixelated; transform:scaleX(var(--f, 1)); }
+.mk-hero.walk img { animation:mkwalk .3s ease-in-out infinite; }
+.mk-cat { image-rendering:pixelated; }
+@keyframes mkwalk { 50% { translate:0 -6%; } }
+.mk-title { position:absolute; left:50%; top:10px; transform:translateX(-50%); font-family:'Lilita One', 'Mitr', sans-serif; font-size:22px; color:#ffe27a; -webkit-text-stroke:5px #3a2200; paint-order:stroke fill; pointer-events:none; }
+.mk-exit { position:absolute; left:10px; bottom:12px; border:3px solid #10182b; border-radius:14px; background:linear-gradient(#34466e, #22304f); color:#fff; font-size:14px; font-weight:600; padding:8px 14px; cursor:pointer; box-shadow:0 3px 0 #0c1324; }
+#game.in-market .menu, #game.in-market .fight, #game.in-market .skillbox, #game.in-market .hud-c, #game.in-market .hud-dps, #game.in-market .hud-buffs { display:none; }
+#game.in-market .hud-l, #game.in-market .hud-money { z-index:7; }
+.row .pic.emo { font-size:30px; }
+.row .pic img.pix { image-rendering:pixelated; }
+.buy.gemb { background:#3fa6e8; color:#04223a; }

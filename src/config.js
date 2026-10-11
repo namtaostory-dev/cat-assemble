@@ -185,6 +185,32 @@ export const EQUIP = {
   ],
 };
 
+// ตลาด (ออฟไลน์): ร้านในฉากตลาด ราคาเป็นจำนวนเท่าของเหรียญต่อมอนสเตอร์ในด่านสูงสุด
+// x1/x2 = ช่วงหน้าร้านบนภาพตลาด 1024×572
+export const MARKET = {
+  img: 'assets/scenes/market.webp', w: 1024, h: 572, street: 512,
+  shops: [
+    { id: 'potion', name: 'ร้านยา',      tag: 'ยาบัฟ',    x1: 8,   x2: 190 },
+    { id: 'fabric', name: 'ร้านผ้า',     tag: 'ชุด',      x1: 240, x2: 372 },
+    { id: 'armory', name: 'โรงตีเหล็ก',  tag: 'ตีบวก',    x1: 378, x2: 495 },
+    { id: 'bake',   name: 'ร้านขนม',     tag: 'ขนม EXP',  x1: 590, x2: 790 },
+    { id: 'gems',   name: 'ร้านอัญมณี',  tag: 'กาชา',     x1: 895, x2: 1020 },
+  ],
+};
+// ยาบัฟ: ซื้อซ้ำต่อเวลาได้ สูงสุด maxMin นาที
+export const POTIONS = {
+  dmg:   { name: 'ยาพลังแมว',  icon: '🧪', text: 'ดาเมจทั้งหมด ×2',   mul: 2,   min: 10, price: 300 },
+  gold:  { name: 'ยาโชคทอง',   icon: '🍯', text: 'เหรียญ ×2',        mul: 2,   min: 10, price: 300 },
+  speed: { name: 'ยาเร่งฝีเท้า', icon: '🥤', text: 'ความเร็วฟัน ×1.5', mul: 1.5, min: 10, price: 200 },
+};
+export const POTION_MAX_MIN = 60;
+export const OUTFIT_PRICE = 400;    // ชุดระดับหายาก (R) เลเวลเท่าด่านสูงสุด
+// ขนม: price = เหรียญ (เท่าของเหรียญต่อมอนสเตอร์) หรือ gems = เพชร · exp = สัดส่วนของ EXP ที่ต้องใช้ขึ้นเลเวลถัดไป
+export const BREADS = [
+  { id: 'bun',  name: 'ขนมปังปลาทู',   icon: '🥐', exp: 0.25, price: 150 },
+  { id: 'cake', name: 'เค้กปลาแซลมอน', icon: '🎂', exp: 1,    gems: 60 },
+];
+
 // โหมดทดสอบ: ปุ่ม + รับเหรียญและเพชรฟรี ต้องตั้งเป็น false ก่อนเปิดขายเพชรจริง
 export const DEV = { freeCurrency: true, gemsPerClick: 1000, minGoldPerClick: 10000 };
 

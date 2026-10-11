@@ -33,6 +33,7 @@
     <div class="who"><div class="name">CatMaster</div><div class="lvline">Lv.<b id="heroLv">1</b></div><div class="expbar"><i id="expBar"></i></div></div>
   </div>
   <div class="hud-dps">DPS <b id="dps">0</b>/s</div>
+  <div class="hud-buffs" id="buffs"></div>
 
   <!-- กลางบน: ด่าน + ป้ายศัตรู/บอส -->
   <div class="hud-c">
@@ -55,6 +56,7 @@
     <button class="tile" id="openEquip"><span class="ico"><img src="assets/hero/slash1.png" alt="" class="heroico"></span><span class="lbl">ตีบวก</span><i class="badge" id="equipBadge"></i></button>
     <button class="tile" id="openHeroes"><span class="ico"><img src="assets/ui/avatar.png" alt=""></span><span class="lbl">คู่หู</span><i class="badge" id="heroBadge"></i></button>
     <button class="tile" id="openGacha"><span class="ico"><img src="assets/ui/gem.png" alt="" class="gemico"></span><span class="lbl">กาชา</span><i class="badge" id="gachaBadge"></i></button>
+    <button class="tile" id="openMarket"><span class="ico"><img src="assets/ui/ico-market.png" alt="" class="mkico"></span><span class="lbl">ตลาด</span></button>
     <button class="tile" id="openSettings"><span class="ico"><img src="assets/ui/ico-setting.png" alt=""></span><span class="lbl">ตั้งค่า</span></button>
   </nav>
 
@@ -63,6 +65,18 @@
 
   <!-- ขวาล่าง: สกิลตามอาวุธ -->
   <div class="skillbox"><button class="sklabel" id="autoSkill" aria-pressed="true">AUTO</button><div class="skills" id="skills"></div></div>
+
+  <!-- ฉากตลาด: แตะร้านแล้วตัวเราเดินไปที่ร้าน การต่อสู้ยังเดินต่อเบื้องหลัง -->
+  <div class="market" id="market" hidden>
+    <div class="mk-stage" id="mkStage">
+      <img class="mk-bg" src="assets/scenes/market.webp" alt="">
+      <div class="mk-shops" id="mkShops"></div>
+      <img class="mk-cat" id="mkCat" alt="">
+      <div class="mk-hero" id="mkHero"><img src="assets/hero/slash1.png" alt=""></div>
+    </div>
+    <div class="mk-title">ตลาดแมว</div>
+    <button class="mk-exit" id="mkExit">⚔️ กลับไปสู้</button>
+  </div>
 
   <div class="toast" id="toast"></div>
 
@@ -137,6 +151,12 @@
       <button class="btn gagain" id="gAgain"></button>
     </div>
   </div>
+
+  <!-- แผ่นร้านค้าในตลาด -->
+  <section class="sheet" id="shopSheet" aria-label="ร้านค้า">
+    <header><h2 id="shopTitle">ร้านค้า</h2><button class="close" data-close aria-label="ปิด">×</button></header>
+    <div class="list" id="shopList"></div>
+  </section>
 
   <!-- แผ่น Setting -->
   <section class="sheet" id="settingsSheet" aria-label="Setting">

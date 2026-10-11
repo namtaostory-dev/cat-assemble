@@ -1,4 +1,4 @@
-import { BAL, CATS, GACHA, STAR, HERO, PASSIVES, WEAPONS, WSKILLS, DEV, EQUIP, LEVEL } from './config.js';
+import { BAL, CATS, GACHA, STAR, HERO, PASSIVES, WEAPONS, WSKILLS, DEV, EQUIP, LEVEL, MARKET, POTIONS, BREADS, OUTFIT_PRICE } from './config.js';
 import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
 import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower, itemValue, itemName, expNeed, slotsAtLevel } from './game.js';
@@ -6,7 +6,7 @@ import { Battle, W, H } from './battle.js';
 
 const $ = id => document.getElementById(id);
 const gameEl = $('game'), fx = $('fx');
-let scale = 1;
+let scale = 1, view = null;
 
 // ---------- ย่อ/ขยายฉาก 844×390 ให้พอดีจอแนวนอน เว้นรอยบาก/Dynamic Island ด้านข้างและแถบโฮม ----------
 const probe = document.createElement('div');
@@ -21,7 +21,9 @@ function fit() {
   const x = l + (w - W * scale) / 2, y = t + (h - H * scale) / 2;
   gameEl.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
   // ฉากวาดเต็มจอ (รวมขอบนอกกรอบเกม) ส่วน HUD อยู่ในกรอบที่หลบ safe area
-  battle?.resize(scale, { l: -x / scale, t: -y / scale, w: window.innerWidth / scale, h: window.innerHeight / scale });
+  view = { l: -x / scale, t: -y / scale, w: window.innerWidth / scale, h: window.innerHeight / scale };
+  battle?.resize(scale, view);
+  layoutMarket();
 }
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', () => setTimeout(fit, 250));
@@ -589,6 +591,138 @@ $('salvageC').addEventListener('click', () => {
   saveState(state); buildEquip(); updateHud();
 });
 
+// ---------- ตลาด (ออฟไลน์) ----------
+// ภาพตลาดขยายเต็มจอแบบ cover ชิดขอบล่าง (ร้านอยู่ครึ่งล่างของภาพ) พิกัดร้านเป็นพิกัดบนภาพ 1024×572
+let mk = { k: 1, heroX: 470, walkTimer: 0, shop: null };
+function layoutMarket() {
+  if (!view) return;
+  const m = $('market'), st = $('mkStage');
+  Object.assign(m.style, { left: view.l + 'px', top: view.t + 'px', width: view.w + 'px', height: view.h + 'px' });
+  mk.k = Math.max(view.w / MARKET.w, view.h / MARKET.h);
+  const w = MARKET.w * mk.k, h = MARKET.h * mk.k;
+  Object.assign(st.style, { width: w + 'px', height: h + 'px', left: (view.w - w) / 2 + 'px', top: (view.h - h) + 'px' });
+  const hero = $('mkHero'), cat = $('mkCat');
+  hero.style.height = 74 * mk.k + 'px';
+  hero.style.top = (MARKET.street - 74) * mk.k + 'px';
+  cat.style.height = 56 * mk.k + 'px';
+  cat.style.top = (MARKET.street - 56) * mk.k + 'px';
+  placeMarketHero(mk.heroX, 0);
+}
+function buildMarket() {
+  $('mkShops').innerHTML = MARKET.shops.map(sh =>
+    `<button class="mk-shop" data-shop="${sh.id}" aria-label="${sh.name}" style="left:${sh.x1 / MARKET.w * 100}%;width:${(sh.x2 - sh.x1) / MARKET.w * 100}%;top:${330 / MARKET.h * 100}%;height:${(MARKET.street - 330) / MARKET.h * 100}%"><span class="mk-tag">${sh.tag}</span></button>`).join('');
+}
+function placeMarketHero(x, sec) {
+  const hero = $('mkHero'), cat = $('mkCat');
+  const face = x >= mk.heroX ? 1 : -1;
+  hero.style.setProperty('--f', face);
+  hero.style.transitionDuration = sec + 's';
+  hero.style.left = x * mk.k + 'px';
+  cat.style.transitionDuration = sec + 0.15 + 's';
+  cat.style.left = (x - face * 52) * mk.k + 'px';
+  cat.style.transform = `translateX(-50%) scaleX(${face})`;
+  mk.heroX = x;
+}
+function walkTo(x, then) {
+  clearTimeout(mk.walkTimer);
+  const sec = Math.min(2, Math.abs(x - mk.heroX) / 320);
+  placeMarketHero(x, sec);
+  $('mkHero').classList.toggle('walk', sec > 0.05);
+  mk.walkTimer = setTimeout(() => { $('mkHero').classList.remove('walk'); then?.(); }, sec * 1000);
+}
+function openMarket() {
+  closeSheets();
+  const lead = catById(state.team[0]);
+  $('mkCat').src = `assets/cats/${lead.img}.png`;
+  $('market').hidden = false;
+  gameEl.classList.add('in-market');
+  layoutMarket();
+}
+function closeMarket() {
+  closeSheets();
+  $('market').hidden = true;
+  gameEl.classList.remove('in-market');
+}
+$('openMarket').addEventListener('click', openMarket);
+$('mkExit').addEventListener('click', closeMarket);
+$('mkStage').addEventListener('click', e => {
+  const b = e.target.closest('.mk-shop');
+  const r = $('mkStage').getBoundingClientRect();
+  if (!b) { walkTo(Math.max(30, Math.min(MARKET.w - 30, (e.clientX - r.left) / r.width * MARKET.w))); return; }
+  const sh = MARKET.shops.find(x => x.id === b.dataset.shop);
+  document.querySelectorAll('.mk-shop').forEach(x => x.classList.toggle('on', x === b));
+  walkTo((sh.x1 + sh.x2) / 2, () => {
+    b.classList.remove('on');
+    if (sh.id === 'armory') openSheet('equipSheet');
+    else if (sh.id === 'gems') openSheet('gachaSheet');
+    else openShop(sh.id);
+  });
+});
+
+function openShop(id) {
+  mk.shop = id;
+  $('shopTitle').textContent = MARKET.shops.find(x => x.id === id).name;
+  openSheet('shopSheet');
+}
+const coin = n => `<span><img src="assets/ui/coin.png" alt="">${fmt(n, true)}</span>`;
+const gem = n => `<span><img src="assets/ui/gem.png" alt="">${n}</span>`;
+function renderShop() {
+  const id = mk.shop, now = Date.now();
+  let html = '';
+  if (id === 'potion') {
+    html = Object.entries(POTIONS).map(([k, p]) => {
+      const cost = game.shopPrice(p.price), left = game.potionLeft(k, now);
+      const ok = state.gold >= cost && left + p.min * 60 <= 3600;
+      return `<div class="row"><div class="pic emo">${p.icon}</div><div class="mid"><div class="nm">${p.name}</div>` +
+        `<div class="sub">${p.text} ${p.min} นาที<br><span class="p${left > 0 ? ' on' : ''}">${left > 0 ? 'เหลือ ' + fmtClock(left) : 'ซื้อซ้ำเพื่อต่อเวลา สูงสุด 60 นาที'}</span></div></div>` +
+        `<button class="buy ${ok ? '' : 'no'}" data-potion="${k}"><b>ดื่ม</b>${coin(cost)}</button></div>`;
+    }).join('');
+  } else if (id === 'fabric') {
+    const cost = game.shopPrice(OUTFIT_PRICE), ok = state.gold >= cost && state.items.length < EQUIP.invMax;
+    html = EQUIP.outfits.map((o, i) =>
+      `<div class="row"><div class="pic"><img class="pix" src="${HERO.img}" alt="" style="filter:${o.filter}"></div><div class="mid"><div class="nm">${o.name} <small>หายาก · Lv ${state.maxStage}</small></div>` +
+      `<div class="sub">${EQUIP.stats.all.name} · เปลี่ยนหน้าตาตัวเรา${state.items.length >= EQUIP.invMax ? '<br><span class="p">กระเป๋าเต็ม ย่อยของก่อนนะ</span>' : ''}</div></div>` +
+      `<button class="buy ${ok ? '' : 'no'}" data-outfit="${i}"><b>ซื้อ</b>${coin(cost)}</button></div>`).join('');
+  } else if (id === 'bake') {
+    html = BREADS.map(b => {
+      const ok = b.gems ? game.gems() >= b.gems : state.gold >= game.shopPrice(b.price);
+      return `<div class="row"><div class="pic emo">${b.icon}</div><div class="mid"><div class="nm">${b.name}</div>` +
+        `<div class="sub">EXP +${fmt(game.breadExp(b))} (${Math.round(b.exp * 100)}% ของเลเวลนี้)</div></div>` +
+        `<button class="buy ${b.gems ? 'gemb' : ''} ${ok ? '' : 'no'}" data-bread="${b.id}"><b>กิน</b>${b.gems ? gem(b.gems) : coin(game.shopPrice(b.price))}</button></div>`;
+    }).join('');
+  }
+  setHtml($('shopList'), html);
+}
+const fmtClock = sec => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+$('shopList').addEventListener('click', e => {
+  const b = e.target.closest('.buy');
+  if (!b) return;
+  if (b.dataset.potion) {
+    const r = game.buyPotion(b.dataset.potion), p = POTIONS[b.dataset.potion];
+    if (r === 'gold') toast('เหรียญไม่พอ');
+    else if (r === 'max') toast('ต่อเวลาได้สูงสุด 60 นาที');
+    else { toast(`${p.icon} ${p.name}! ${p.text}`); flash('#7be04a'); }
+  } else if (b.dataset.outfit) {
+    const r = game.buyOutfit(+b.dataset.outfit);
+    if (r === 'gold') toast('เหรียญไม่พอ');
+    else if (r === 'full') toast('กระเป๋าเต็ม ย่อยของก่อนนะ');
+    else toast(`ได้${itemName(r)}แล้ว! ไปสวมที่หน้าตีบวก`, 2000);
+  } else if (b.dataset.bread) {
+    const r = game.buyBread(b.dataset.bread);
+    if (r === 'gold') toast('เหรียญไม่พอ');
+    else if (r === 'gems') toast('เพชรไม่พอ');
+    else toast(`อร่อย! EXP +${fmt(r)}`);
+  }
+  saveState(state); updateHud(); renderShop();
+});
+function updateBuffs() {
+  const now = Date.now();
+  setHtml($('buffs'), Object.entries(POTIONS).map(([k, p]) => {
+    const left = game.potionLeft(k, now);
+    return left > 0 ? `<span>${p.icon} ${fmtClock(left)}</span>` : '';
+  }).join(''));
+}
+
 // ---------- เปิด/ปิดแผ่น ----------
 function openSheet(id) {
   document.querySelectorAll('.sheet').forEach(s => s.classList.toggle('open', s.id === id));
@@ -596,6 +730,7 @@ function openSheet(id) {
   if (id === 'gachaSheet') { buildBanner(); updateGacha(); }
   if (id === 'settingsSheet') refreshSettings();
   if (id === 'equipSheet') buildEquip();
+  if (id === 'shopSheet') renderShop();
 }
 function toggleSheet(id) { $(id).classList.contains('open') ? closeSheets() : openSheet(id); }
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); }
@@ -699,11 +834,14 @@ function loop(now) {
     updateSkills();
     if ($('heroesSheet').classList.contains('open')) updateHeroList();
     if ($('gachaSheet').classList.contains('open')) updateGacha();
+    if ($('shopSheet').classList.contains('open')) renderShop();
+    updateBuffs();
   }
   requestAnimationFrame(loop);
 }
 
 const firstLoad = !loadState();
+buildMarket();
 startGame(state);
 if (!firstLoad) checkOffline(state.lastSeen);
 else toast('ตัวเราตีเองอัตโนมัติ · แตะจอเพื่อฟันเพิ่ม', 3000);
