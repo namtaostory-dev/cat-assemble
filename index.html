@@ -61,8 +61,8 @@
   <!-- กลางล่าง: ปุ่มท้าบอส -->
   <button class="fight" id="fight" aria-label="Fight"><span class="fx-ico">⚔️</span>FIGHT</button>
 
-  <!-- ขวาล่าง: สกิลคู่หู -->
-  <div class="skillbox"><span class="sklabel">Skills</span><div class="skills" id="skills"></div></div>
+  <!-- ขวาล่าง: สกิลตามอาวุธ -->
+  <div class="skillbox"><button class="sklabel" id="autoSkill" aria-pressed="true">AUTO</button><div class="skills" id="skills"></div></div>
 
   <div class="toast" id="toast"></div>
 
@@ -94,6 +94,7 @@
       <div class="itemHead"><span class="itemIco" id="imIco"></span><div><h2 id="imName"></h2><p id="imSub"></p></div></div>
       <p class="itemStat" id="imStat"></p>
       <p class="itemCmp" id="imCmp"></p>
+      <p class="itemSkills" id="imSkills" hidden></p>
       <div class="row">
         <button class="btn" id="imEquip"></button>
         <button class="btn gem" id="imEnhance"></button>

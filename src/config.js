@@ -66,40 +66,60 @@ export const STARTER = 'volt';
 
 // img = ชื่อไฟล์ภาพใน assets/cats และ assets/skills
 export const CATS = [
-  { id: 'volt',  name: 'โวลต์',   img: 'thunder', rarity: 'C',   color: '#ffd23a' },
-  { id: 'toxin', name: 'ท็อกซิน', img: 'poison',  rarity: 'C',   color: '#7be04a' },
-  { id: 'rock',  name: 'ร็อค',    img: 'earth',   rarity: 'C',   color: '#c08a52' },
-  { id: 'blaze', name: 'บลาซ',    img: 'fire',    rarity: 'R',  color: '#ff6a2a' },
-  { id: 'frost', name: 'ฟรอสต์',  img: 'ice',     rarity: 'R',  color: '#5ac8ff' },
-  { id: 'gale',  name: 'เกล',     img: 'wind',    rarity: 'SR',  color: '#4fe3d6' },
-  { id: 'lumi',  name: 'ลูมิ',    img: 'light',   rarity: 'SSR', color: '#fff2a0' },
-  { id: 'nox',   name: 'น็อกซ์',  img: 'dark',    rarity: 'SSR', color: '#a35cff' },
-  // แมวพิกเซล มีพาสซีฟติดตัวเมื่ออยู่ในทีม (แรงขึ้นตามดาวเหมือนสกิล)
+  { id: 'volt',  name: 'โวลต์',   img: 'thunder', rarity: 'C',   color: '#ffd23a', passive: 'exp' },
+  { id: 'toxin', name: 'ท็อกซิน', img: 'poison',  rarity: 'C',   color: '#7be04a', passive: 'bossDmg' },
+  { id: 'rock',  name: 'ร็อค',    img: 'earth',   rarity: 'C',   color: '#c08a52', passive: 'gold' },
+  { id: 'blaze', name: 'บลาซ',    img: 'fire',    rarity: 'R',   color: '#ff6a2a', passive: 'skillDmg' },
+  { id: 'frost', name: 'ฟรอสต์',  img: 'ice',     rarity: 'R',   color: '#5ac8ff', passive: 'bossTime' },
+  { id: 'gale',  name: 'เกล',     img: 'wind',    rarity: 'SR',  color: '#4fe3d6', passive: 'speed' },
+  { id: 'lumi',  name: 'ลูมิ',    img: 'light',   rarity: 'SSR', color: '#fff2a0', passive: 'cooldown' },
+  { id: 'nox',   name: 'น็อกซ์',  img: 'dark',    rarity: 'SSR', color: '#a35cff', passive: 'critDmg' },
   { id: 'bombardier', name: 'บอมเบอร์', img: 'bombardier', rarity: 'R',   color: '#ff9a3a', passive: 'teamDps' },
   { id: 'saboteur',   name: 'ซาโบ',     img: 'saboteur',   rarity: 'SR',  color: '#ff5a4a', passive: 'crit' },
   { id: 'empress',    name: 'เอ็มเพรส', img: 'empress',    rarity: 'SSR', color: '#ff9ad5', passive: 'bossHp' },
 ];
 
+// พาสซีฟของแมวคู่หู: มีผลเมื่อเรียกมาช่วยสู้ p = พลังตามดาว (★1 = 1, +0.2 ต่อดาว)
+// v(p) คือค่าที่ใช้คำนวณ (สัดส่วน หรือวินาทีสำหรับ bossTime)
 export const PASSIVES = {
-  teamDps: { text: p => `DPS แมวทั้งทีม +${Math.round(10 * p)}%` },
-  crit:    { text: p => `โอกาสคริติคอล +${Math.round(5 * p)}%` },
-  bossHp:  { text: p => `HP บอสลดลง ${Math.round(Math.min(50, 10 * p))}%` },
+  exp:      { v: p => 0.15 * p, text: p => `EXP +${Math.round(15 * p)}%` },
+  bossDmg:  { v: p => 0.2 * p,  text: p => `ดาเมจใส่บอส +${Math.round(20 * p)}%` },
+  gold:     { v: p => 0.25 * p, text: p => `เหรียญ +${Math.round(25 * p)}%` },
+  skillDmg: { v: p => 0.3 * p,  text: p => `ดาเมจสกิล +${Math.round(30 * p)}%` },
+  bossTime: { v: p => 5 * p,    text: p => `เวลาสู้บอส +${Math.round(5 * p)} วิ` },
+  speed:    { v: p => 0.2 * p,  text: p => `ความเร็วฟัน +${Math.round(20 * p)}%` },
+  cooldown: { v: p => Math.min(0.4, 0.15 * p), text: p => `คูลดาวน์สกิล −${Math.round(Math.min(40, 15 * p))}%` },
+  critDmg:  { v: p => 0.4 * p,  text: p => `ดาเมจคริติคอล +${Math.round(40 * p)}%` },
+  teamDps:  { v: p => 0.1 * p,  text: p => `DPS แมวทั้งทีม +${Math.round(10 * p)}%` },
+  crit:     { v: p => 0.05 * p, text: p => `โอกาสคริติคอล +${Math.round(5 * p)}%` },
+  bossHp:   { v: p => Math.min(0.5, 0.1 * p), text: p => `HP บอสลดลง ${Math.round(Math.min(50, 10 * p))}%` },
 };
 
-// สกิลเฉพาะของแมวแต่ละตัว p = พลังสกิลตามดาว (★1 = 1, +0.2 ต่อดาว)
-export const SKILLS = {
-  blaze: { name: 'ฟันเพลิง',        cd: 120, dur: 0,  desc: p => `ดาเมจทันที = ดาเมจดาบ ×${Math.round(60 * p)}` },
-  frost: { name: 'แช่แข็ง',         cd: 300, dur: 10, desc: p => `หยุดเวลาบอส ${Math.round(10 * p)} วิ` },
-  volt:  { name: 'ฟ้าผ่า',          cd: 240, dur: 30, desc: p => `โอกาสคริติคอล +${Math.round(30 * p)}% 30 วิ` },
-  toxin: { name: 'หมอกพิษ',         cd: 480, dur: 20, desc: p => `ศัตรูเสียเลือด ${(0.5 * p).toFixed(1)}%/วิ 20 วิ` },
-  rock:  { name: 'เหมืองทอง',       cd: 360, dur: 30, desc: p => `เหรียญ ×${(1 + p).toFixed(1)} 30 วิ` },
-  gale:  { name: 'ลมเร่ง',          cd: 300, dur: 30, desc: p => `ตัวเราฟันเร็ว ×${(1 + 2 * p).toFixed(1)} 30 วิ` },
-  lumi:  { name: 'แสงศักดิ์สิทธิ์',   cd: 480, dur: 30, desc: p => `DPS แมวทุกตัว ×${(1 + p).toFixed(1)} 30 วิ` },
-  nox:   { name: 'คืนจันทร์ดับ',     cd: 600, dur: 30, desc: p => `ดาเมจคริติคอล ×${(1 + 2 * p).toFixed(1)} 30 วิ` },
-  bombardier: { name: 'ระเบิดลูกใหญ่',  cd: 150, dur: 0, desc: p => `ดาเมจทันที = DPS ทีม ×${Math.round(15 * p)}` },
-  saboteur:   { name: 'ไดนาไมต์ลูกโซ่', cd: 240, dur: 0, desc: p => `คริติคอลทันที = ดาเมจดาบ ×${Math.round(40 * p)} ×คริ` },
-  empress:    { name: 'ฝนเวทมนตร์',    cd: 300, dur: 0, desc: p => `ดาเมจทันที = DPS ทีม ×${Math.round(30 * p)}` },
+// ชนิดอาวุธ: สกิลของตัวเรามาจากอาวุธที่สวม (ไม่สวมอาวุธ = ดาบ)
+export const WEAPONS = {
+  sword: { name: 'ดาบ',       color: '#bff4ff' },
+  light: { name: 'ไม้เท้าแสง', color: '#fff3a8' },
+  fire:  { name: 'ไม้เท้าไฟ',  color: '#ff7a2a' },
 };
+
+// สกิลตามอาวุธ: ปลดตามเลเวลตัวเรา (lv) ร่ายอัตโนมัติเมื่อคูลดาวน์หมด
+// ดาเมจต่อครั้ง = ดาเมจฟัน × mul × (1 + 15% ต่อขั้นตีบวกอาวุธ) โดนได้ targets ตัว ตัวละ hits ครั้ง ในระยะ range
+// range 'all' = ทุกตัวในจอ · fx = ท่าที่วาดในฉาก · buff = บัฟแทนดาเมจ
+export const WSKILLS = [
+  { id: 'sw1', kind: 'sword', lv: 1,  name: 'ฟันวงกว้าง',     icon: '⚔️', cd: 4,  mul: 1.2, hits: 2, targets: 4,  range: 260, fx: 'arc' },
+  { id: 'sw2', kind: 'sword', lv: 10, name: 'พายุดาบ',        icon: '🌀', cd: 10, mul: 1.0, hits: 5, targets: 8,  range: 420, fx: 'tornado' },
+  { id: 'sw3', kind: 'sword', lv: 30, name: 'ดาบพุ่งทะลวง',    icon: '🗡️', cd: 15, mul: 1.5, hits: 6, targets: 10, range: 650, fx: 'dash' },
+  { id: 'sw4', kind: 'sword', lv: 60, name: 'ดาบยักษ์ฟาดพื้น',  icon: '⚡', cd: 30, mul: 3.0, hits: 8, targets: 15, range: 'all', fx: 'giant' },
+  { id: 'li1', kind: 'light', lv: 1,  name: 'ลำแสงศักดิ์สิทธิ์',  icon: '✨', cd: 5,  mul: 0.6, hits: 5, targets: 6,  range: 450, fx: 'beam' },
+  { id: 'li2', kind: 'light', lv: 10, name: 'วงแสงศักดิ์สิทธิ์',  icon: '🔆', cd: 10, mul: 1.2, hits: 4, targets: 10, range: 320, fx: 'ring' },
+  { id: 'li3', kind: 'light', lv: 30, name: 'พรแห่งแสง',      icon: '😇', cd: 30, buff: { dmg: 0.5, dur: 12 }, fx: 'bless' },
+  { id: 'li4', kind: 'light', lv: 60, name: 'ฝนแสง',          icon: '🌟', cd: 30, mul: 3.0, hits: 8, targets: 15, range: 'all', fx: 'rain' },
+  { id: 'fi1', kind: 'fire',  lv: 1,  name: 'ลูกไฟระเบิด',     icon: '🔥', cd: 4,  mul: 1.0, hits: 3, targets: 5,  range: 500, fx: 'fireball', splash: 150 },
+  { id: 'fi2', kind: 'fire',  lv: 10, name: 'กำแพงไฟ',        icon: '🧱', cd: 12, mul: 0.9, hits: 6, targets: 10, range: 420, fx: 'firewall' },
+  { id: 'fi3', kind: 'fire',  lv: 30, name: 'ระเบิดหลายจุด',    icon: '💣', cd: 20, mul: 1.5, hits: 4, targets: 6,  range: 'all', fx: 'bombs' },
+  { id: 'fi4', kind: 'fire',  lv: 60, name: 'อุกกาบาตตก',      icon: '☄️', cd: 30, mul: 4.0, hits: 6, targets: 15, range: 'all', fx: 'meteor' },
+];
+export const WSKILL_PLUS = 0.15;   // ดาเมจสกิลเพิ่มต่อขั้นตีบวกของอาวุธ
 
 // ทุก 50 ด่านเปลี่ยนโซน ครบแล้ววนใหม่
 export const ZONES = [
@@ -169,4 +189,4 @@ export const EQUIP = {
 export const DEV = { freeCurrency: true, gemsPerClick: 1000, minGoldPerClick: 10000 };
 
 export const SAVE_KEY = 'cat-assemble-save';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;

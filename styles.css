@@ -100,9 +100,9 @@ button { font:inherit; color:inherit; }
 .dmg.cat { font-size:19px; }
 .dmg.cat .o { color:#24104e; -webkit-text-stroke-width:5px; -webkit-text-stroke-color:#24104e; }
 .dmg.cat .f { background-image:linear-gradient(#f4e6ff 8%, #c69aff 50%, #7a3ad0 92%); }
-.dmg.dot { font-size:17px; }
-.dmg.dot .o { color:#0f3a06; -webkit-text-stroke:5px #0f3a06; }
-.dmg.dot .f { background-image:linear-gradient(#eaffd8 8%, #8be05a 55%, #2f8a1a 92%); }
+.dmg.skill { font-size:23px; }
+.dmg.skill .o { color:#3a0010; -webkit-text-stroke:5px #3a0010; }
+.dmg.skill .f { background-image:linear-gradient(#fff0d0 8%, #ff8a3a 50%, #e0201a 92%); }
 .dmg.gold { font-family:'Mitr', sans-serif; font-weight:600; font-size:15px; }
 .dmg.gold .o { -webkit-text-stroke-width:5px; }
 @keyframes dmgpop {
@@ -336,3 +336,11 @@ button { font:inherit; color:inherit; }
 .sk.lock { font-size:11px; }
 /* CRIT และ COMBO */
 .dmg .crittag { position:absolute; left:-30px; top:-14px; font-size:15px; color:#ffe27a; -webkit-text-stroke:4px #5a2a00; paint-order:stroke fill; background:none; }
+
+/* สกิลตามอาวุธ: ไอคอนอีโมจิบนพื้นสีของอาวุธ · ปุ่ม AUTO */
+.sk .ico { position:absolute; inset:0; display:grid; place-items:center; font-size:24px; border-radius:50%; background:radial-gradient(circle at 40% 35%, var(--c, #bff4ff) 0%, #23345a 75%); }
+button.sklabel { color:#aab6d3; cursor:pointer; font-family:'Lilita One', sans-serif; font-size:13px; font-weight:400; letter-spacing:.5px; }
+button.sklabel.on { color:#fff; background:linear-gradient(#4fc46a, #2b8a43); box-shadow:0 0 10px #5fe05a; }
+.itemSkills { margin:6px 0 0; font-size:12px; line-height:1.5; color:#cfd8ec; }
+.itemSkills b { color:#ffe27a; font-weight:600; }
+.itemSkills .off { opacity:.5; }

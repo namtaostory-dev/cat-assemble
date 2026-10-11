@@ -1,4 +1,4 @@
-import { BAL, CATS, GACHA, STAR, SKILLS, HERO, PASSIVES, DEV, EQUIP, LEVEL } from './config.js';
+import { BAL, CATS, GACHA, STAR, HERO, PASSIVES, WEAPONS, WSKILLS, DEV, EQUIP, LEVEL } from './config.js';
 import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
 import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower, itemValue, itemName, expNeed, slotsAtLevel } from './game.js';
@@ -38,7 +38,7 @@ function toScene(clientX, clientY) {
 // ---------- เอฟเฟกต์บนชั้น DOM (พิกัดเดียวกับฉาก) ----------
 let fxCount = 0;
 function addFx(el, ms) {
-  if (fxCount > 70) return false;
+  if (fxCount > 160) return false;
   fx.appendChild(el); fxCount++;
   setTimeout(() => { el.remove(); fxCount--; }, ms);
   return true;
@@ -63,11 +63,12 @@ function popText(text, x, y, cls) {
   d.style.top = y + 'px';
   addFx(d, 900);
 }
-function popOn(m, amount, cls, key) {
-  const off = { hero: -12, cat: 26, dot: 6 }[key] || 0;
-  const row = stackRow(m.id + key);
-  const y = m.y - m.h - 30 - row * (cls === 'crit' ? 30 : 25);
-  popText(fmtDmg(amount), battle.sx(m.x) + off + (Math.random() * 8 - 4), battle.sy(y), cls);
+// row: แถวที่กำหนดเอง (สกิลหลายครั้งเรียงเป็นคอลัมน์ขึ้นไป) ถ้าไม่ให้มาจะซ้อนตามจังหวะตี
+function popOn(m, amount, cls, key, row) {
+  const off = { hero: -12, cat: 26 }[key] || 0;
+  if (row == null) row = stackRow(m.id + key);
+  const y = battle.sy(m.y - m.h) - 24 - row * (key === 'skill' ? 23 : cls === 'crit' ? 28 : 24);
+  popText(fmtDmg(amount), battle.sx(m.x) + off + (key === 'skill' ? 0 : Math.random() * 8 - 4), y, cls);
 }
 function boomFx(x, y, color) {
   const b = document.createElement('div');
@@ -137,6 +138,9 @@ function startGame(s) {
     },
     onLevel(lv, newSlot) {
       lvupFx(lv, newSlot);
+      const k = game.skillList().find(x => x.lv > lv - 1 && x.lv <= lv);
+      if (k) toast(`ปลดสกิลใหม่: ${k.name}!`, 2000);
+      buildSkillBar();
       if (newSlot) {
         // ปลดช่องคู่หูใหม่: ดึงแมวที่มีอยู่แต่ยังไม่ได้เรียกมาลงช่องอัตโนมัติ
         const spare = CATS.find(c => state.cats[c.id] && !state.team.includes(c.id));
@@ -151,8 +155,6 @@ function startGame(s) {
       saveState(state);
     },
     onBossFail() { battle.bossFled(); toast('บอสหนีไปแล้ว! อัปเกรดแล้วกด FIGHT เพื่อท้าใหม่', 2500); },
-    onSkill(id) { flash(catById(id).color); toast(`${SKILLS[id].name}!`); },
-    onSkillDamage(id, amount, mode, crit) { battle.skillDamage(amount, mode, crit); },
   });
   if (!battle) battle = new Battle($('stage'), game, ui);
   battle.game = game;
@@ -177,49 +179,61 @@ $('fight').addEventListener('click', () => {
   else toast(game.bossActive ? 'กำลังสู้บอสอยู่!' : `ล้มศัตรูให้ครบ ${BAL.enemiesPerStage} ตัวก่อน บอสจะออกมาเอง`);
 });
 
-// ---------- แถบสกิล: ตามแมวในทีม ----------
-let skillEls = [];
+// ---------- แถบสกิล: ตามอาวุธที่สวม ปลดตามเลเวล ----------
+let skillEls = [], lastCast = 0;
 function buildSkillBar() {
-  const bar = $('skills');
+  const bar = $('skills'), color = WEAPONS[game.weaponKind()].color;
   bar.innerHTML = '';
-  const open = game.slots();
-  skillEls = LEVEL.slotsAt.map((needLv, i) => {
-    const id = i < open ? state.team[i] : null;
+  skillEls = game.skillList().map(k => {
     const b = document.createElement('button');
-    if (i >= open) {
+    if (state.level < k.lv) {
       b.className = 'sk lock';
-      b.textContent = 'Lv ' + needLv;
-      b.setAttribute('aria-label', `ช่องคู่หูปลดที่เลเวล ${needLv}`);
+      b.textContent = 'Lv ' + k.lv;
+      b.setAttribute('aria-label', `${k.name} ปลดที่เลเวล ${k.lv}`);
       bar.appendChild(b);
       return null;
     }
-    b.className = 'sk' + (id ? '' : ' empty');
-    if (id) {
-      b.setAttribute('aria-label', 'สกิล' + SKILLS[id].name);
-      b.innerHTML = `<img src="assets/skills/${catById(id).img}.png" alt=""><div class="cd"></div><span class="t"></span>`;
-      b.addEventListener('click', () => {
-        const st = game.skillState(id);
-        if (!st.ready) return toast(`${SKILLS[id].name} พร้อมใน ${fmtTime(st.left)}`);
-        game.useSkill(id);
-      });
-    } else {
-      b.innerHTML = '<img alt="">';
-      b.setAttribute('aria-hidden', 'true');
-    }
+    b.className = 'sk';
+    b.style.setProperty('--c', color);
+    b.setAttribute('aria-label', 'สกิล' + k.name);
+    b.innerHTML = `<span class="ico">${k.icon}</span><div class="cd"></div><span class="t"></span>`;
+    b.addEventListener('click', () => {
+      const st = game.skillState(k);
+      if (!st.ready) return toast(`${k.name} พร้อมใน ${st.left.toFixed(1)} วิ`);
+      if (!battle.castSkill(k)) toast('ไม่มีศัตรูในระยะ');
+    });
     bar.appendChild(b);
-    return id ? { id, b, ov: b.querySelector('.cd'), t: b.querySelector('.t') } : null;
+    return { k, b, ov: b.querySelector('.cd'), t: b.querySelector('.t') };
   });
+  updateAutoBtn();
 }
-const shortTime = s => s >= 60 ? Math.ceil(s / 60) + 'น.' : Math.ceil(s) + 'วิ';
+function updateAutoBtn() {
+  const b = $('autoSkill');
+  b.classList.toggle('on', state.autoSkill);
+  b.setAttribute('aria-pressed', String(state.autoSkill));
+}
+$('autoSkill').addEventListener('click', () => {
+  state.autoSkill = !state.autoSkill;
+  updateAutoBtn();
+  toast(state.autoSkill ? 'ร่ายสกิลอัตโนมัติ: เปิด' : 'ร่ายสกิลอัตโนมัติ: ปิด');
+  saveState(state);
+});
+// ออโต้: ร่ายสกิลที่พร้อมทีละท่า เว้นจังหวะไม่ให้ท่าใหญ่ทับกันหมด (ท่าเลเวลสูงก่อน)
+function autoCast(now) {
+  if (!state.autoSkill || now - lastCast < 450) return;
+  for (const el of [...skillEls].reverse()) {
+    if (el && game.skillState(el.k).ready && battle.castSkill(el.k)) { lastCast = now; return; }
+  }
+}
 function updateSkills() {
   const now = Date.now();
   for (const el of skillEls) {
     if (!el) continue;
-    const st = game.skillState(el.id, now);
+    const st = game.skillState(el.k, now);
     el.b.classList.toggle('on', st.activeLeft > 0);
     el.b.classList.toggle('ready', st.ready);
     el.ov.style.setProperty('--p', (st.frac * 100) + '%');
-    el.t.textContent = st.activeLeft > 0 ? st.activeLeft.toFixed(1) + 's' : st.ready ? '' : st.left >= 60 ? Math.ceil(st.left / 60) + 'm' : st.left.toFixed(1) + 's';
+    el.t.textContent = st.activeLeft > 0 ? st.activeLeft.toFixed(1) + 's' : st.ready ? '' : st.left.toFixed(1) + 's';
   }
 }
 
@@ -241,7 +255,7 @@ function updateHud() {
     $('ename').textContent = boss.name + ' (Boss)';
     $('hptxt').textContent = fmt(Math.max(0, boss.hp)) + ' / ' + fmt(boss.max);
     $('hpbar').style.width = Math.max(0, boss.hp / boss.max * 100) + '%';
-    wave.textContent = (game.active('frost') ? '❄ ' : '⏱ ') + Math.max(0, game.bossLeft).toFixed(1) + 's';
+    wave.textContent = '⏱ ' + Math.max(0, game.bossLeft).toFixed(1) + 's';
     wave.classList.toggle('hot', game.bossLeft < 10);
   } else {
     bar.classList.remove('boss');
@@ -331,13 +345,13 @@ function updateHeroList() {
         `<button class="starup ${o.dupes >= need ? 'ok' : ''}" data-star="${id}">อัปดาว · Shards ${o.dupes}/${need}</button>`;
       const inTeam = state.team.includes(id), p = skillPower(o.star);
       nm = `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span> <small>Lv ${o.lv}</small><button class="teambtn ${inTeam ? 'on' : ''}" data-team="${id}">${inTeam ? 'ช่วยสู้อยู่' : 'เรียก'}</button>`;
-      sub = `${starsHtml(o.star)}${starBtn}<br>DPS ${fmt(inTeam ? game.catDps(id) : 0)} · ${SKILLS[id].name}: ${SKILLS[id].desc(p)}` +
-        (c.passive ? `<br><span class="p on">พาสซีฟ: ${PASSIVES[c.passive].text(p)}</span>` : '');
+      sub = `${starsHtml(o.star)}${starBtn}<br>DPS ${fmt(inTeam ? game.catDps(id) : 0)}` +
+        `<br><span class="p${inTeam ? ' on' : ''}">พาสซีฟ: ${PASSIVES[c.passive].text(p)}</span>`;
       label = `อัป ×${q.n}`;
     } else {
       const c = catById(id);
       setHtml(row.nm, `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span>`);
-      setHtml(row.sub, `<span class="tag">${SKILLS[id].name}: ${SKILLS[id].desc(1)}${c.passive ? '<br>พาสซีฟ: ' + PASSIVES[c.passive].text(1) : ''}</span>`);
+      setHtml(row.sub, `<span class="tag">พาสซีฟ: ${PASSIVES[c.passive].text(1)}</span>`);
       continue;
     }
     setHtml(row.nm, nm);
@@ -407,10 +421,10 @@ function smallCard(r, delay) {
 }
 function featCard(r, delay) {
   const c = catById(r.id), o = state.cats[r.id], p = skillPower(o.star);
-  const passive = c.passive ? `<br><b>พาสซีฟ:</b> ${PASSIVES[c.passive].text(p)}` : '';
+
   return `<img class="big" src="assets/cats/${c.img}.png" alt="" style="animation-delay:${delay}s">` +
     `<div class="gc ${r.rarity}" style="animation-delay:${delay + 0.15}s"><span class="tag">${r.rarity}</span><div class="nm">${c.name} ${'★'.repeat(o.star)}</div>` +
-    `<div class="ginfo"><b>DPS พื้นฐาน:</b> ${fmt(catDpsAt(r.id, 1, o.star))}${passive}<br><b>สกิล ${SKILLS[r.id].name}:</b> ${SKILLS[r.id].desc(p)}</div>${resultNote(r)}</div>`;
+    `<div class="ginfo"><b>DPS พื้นฐาน:</b> ${fmt(catDpsAt(r.id, 1, o.star))}<br><b>พาสซีฟ:</b> ${PASSIVES[c.passive].text(p)}</div>${resultNote(r)}</div>`;
 }
 function confetti() {
   const box = $('confetti'), cols = ['#ffd23a', '#ff6a8a', '#5ac8ff', '#7be04a', '#b583ff', '#fff'];
@@ -512,6 +526,11 @@ function showItem(uid) {
   $('imName').style.color = r.color;
   $('imSub').textContent = `${EQUIP.slots[it.slot].name} · ${r.name} · ไอเทม Lv ${it.lv}`;
   $('imStat').textContent = `${st.name} +${pct(itemValue(it))}`;
+  $('imSkills').hidden = it.slot !== 'weapon';
+  if (it.slot === 'weapon') {
+    $('imSkills').innerHTML = `สกิลของ${WEAPONS[it.kind].name}` + (it.plus ? ` (ดาเมจสกิล +${Math.round(it.plus * 15)}%)` : '') + ':<br>' +
+      WSKILLS.filter(k => k.kind === it.kind).map(k => `<span class="${state.level < k.lv ? 'off' : ''}">${k.icon} <b>${k.name}</b> Lv ${k.lv}</span>`).join(' · ');
+  }
   const cur = game.item(state.equip[it.slot]);
   const equipped = game.isEquipped(uid);
   if (equipped) $('imCmp').innerHTML = '<span class="up">สวมอยู่</span>';
@@ -539,6 +558,7 @@ $('imEquip').addEventListener('click', () => {
   if (!it) return;
   if (game.isEquipped(it.uid)) game.unequip(it.slot); else game.equipItem(it.uid);
   saveState(state); buildEquip(); showItem(openUid);
+  if (it.slot === 'weapon') buildSkillBar();
 });
 $('imEnhance').addEventListener('click', () => {
   const it = game.item(openUid);
@@ -551,6 +571,7 @@ $('imEnhance').addEventListener('click', () => {
   else if (r === 'down') { toast(`ตีบวกพลาด! ระดับลดเหลือ +${game.item(openUid).plus}`, 1800); flash('#5a6a8a'); }
   else if (r === 'broken') { toast('ตีบวกพลาด… ไอเทมแตกแล้ว 💥', 2200); flash('#d2473a'); }
   saveState(state); buildEquip(); updateHud();
+  if (r === 'broken') buildSkillBar();
   if (game.item(openUid)) showItem(openUid); else $('itemModal').hidden = true;
 });
 $('imSalvage').addEventListener('click', () => {
@@ -669,6 +690,7 @@ function loop(now) {
   last = now;
   game.tick(dt);
   while (dt > 0) { const step = Math.min(dt, 1 / 30); battle.update(step); dt -= step; }
+  autoCast(now);
   battle.draw();
   hudAcc += 1 / 60;
   if (hudAcc >= 0.1) {

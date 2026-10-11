@@ -74,7 +74,9 @@ export class Battle {
     this.loot = [];
     this.cats = [];
     this.spawnT = 0;
-    this.dotT = 0;
+    this.hits = [];   // ดาเมจสกิลที่รอลงทีละจังหวะ { t, m, k, row }
+    this.skfx = [];   // ท่าสกิลที่กำลังวาด
+    this.shake = 0;
   }
 
   // ความละเอียดจริงของ canvas = ขนาดฉาก × สเกลบนจอ × ความหนาแน่นพิกเซล
@@ -126,11 +128,11 @@ export class Battle {
   // ไอเทมดรอป: กล่องเรืองแสงสีตามความหายาก เด้งขึ้นแล้วบินเข้าปุ่ม "ตัวเรา"
   lootFx(m, color) { this.loot.push({ x: m.x, y: m.y - m.h * 0.5, vy: -320, t: 0, color }); }
 
-  damage(m, amount, src, crit) {
+  damage(m, amount, src, crit, row) {
     if (!m || m.dead) return;
     m.hp -= amount;
     m.hitT = 0.12;
-    this.ui.pop(m, amount, crit ? 'crit' : src === 'cat' ? 'cat' : src === 'dot' ? 'dot' : '', src === 'cat' ? 'cat' : src === 'dot' ? 'dot' : 'hero');
+    this.ui.pop(m, amount, crit ? 'crit' : src === 'cat' ? 'cat' : src === 'skill' ? 'skill' : '', src === 'cat' ? 'cat' : src === 'skill' ? 'skill' : 'hero', row);
     if (m.hp <= 0) this.kill(m);
   }
   kill(m) {
@@ -316,15 +318,22 @@ export class Battle {
     }
     this.shots = this.shots.filter(s => !s.done);
 
-    // สกิลหมอกพิษ: เลือดลดทุกตัว รวบเป็นก้อนทุก 0.5 วิ
-    if (g.active('toxin')) {
-      this.dotT += dt;
-      if (this.dotT >= 0.5) {
-        const p = g.power('toxin');
-        for (const m of [...this.monsters]) if (!m.dead) this.damage(m, m.max * 0.005 * p * this.dotT, 'dot');
-        this.dotT = 0;
-      }
+    // ดาเมจสกิลที่ถึงเวลาลง
+    for (const x of this.hits) {
+      x.t -= dt;
+      if (x.t > 0) continue;
+      x.done = true;
+      if (x.m.dead) continue;
+      const r = g.rollSkill(x.k, x.m.boss);
+      this.damage(x.m, r.amount, 'skill', r.crit, x.row);
     }
+    this.hits = this.hits.filter(x => !x.done);
+    for (const f of this.skfx) {
+      f.t += dt;
+      if (f.boomAt && !f.boomed && f.t >= f.boomAt) { f.boomed = true; this.shake = 0.45; this.ui.flash(f.type === 'meteor' ? '#ff7a2a' : '#bff4ff'); }
+    }
+    this.skfx = this.skfx.filter(f => f.t < f.dur);
+    this.shake = Math.max(0, this.shake - dt);
 
     // เหรียญ: เด้งลงพื้น แล้วบินเข้ากระเป๋า
     for (const c of this.coins) {
@@ -352,10 +361,69 @@ export class Battle {
     this.poofs = this.poofs.filter(p => p.t < 0.4);
   }
 
-  // สกิลดาเมจจาก game.useSkill
-  skillDamage(amount, mode, crit) {
-    if (mode === 'aoe') for (const m of [...this.monsters]) this.damage(m, amount, 'skill', crit);
-    else this.damage(this.target(), amount, 'skill', crit);
+  // ---------- สกิลตามอาวุธ ----------
+  // กรอบโลกที่เห็นบนจอตอนนี้
+  viewRect() {
+    const v = this.view;
+    return { x1: this.cam.x + v.l / ZOOM, x2: this.cam.x + (v.l + v.w) / ZOOM, y1: this.cam.y + v.t / ZOOM, y2: this.cam.y + (v.t + v.h) / ZOOM };
+  }
+  // ร่ายสกิล k: เลือกเป้าในระยะ ถ้าไม่มีเป้าไม่ร่าย (ไม่เสียคูลดาวน์) คืน true ถ้าร่ายสำเร็จ
+  castSkill(k) {
+    const h = this.hero, g = this.game;
+    const alive = this.monsters.filter(m => !m.dead && m.spawnT <= 0);
+    if (!alive.length) return false;
+    if (k.buff) {
+      if (!g.useSkill(k)) return false;
+      this.skfx.push({ type: k.fx, t: 0, dur: 0.9, x: h.x, y: h.y });
+      return true;
+    }
+    const vr = this.viewRect();
+    const hy = h.y - 30;
+    let list = k.range === 'all'
+      ? alive.filter(m => m.x > vr.x1 - 20 && m.x < vr.x2 + 20 && m.y > vr.y1 && m.y - m.h < vr.y2)
+      : alive.filter(m => Math.abs(m.x - h.x) <= k.range && Math.abs(m.y - m.h / 2 - hy) <= k.range * 0.7);
+    if (!list.length) return false;
+    const dist = (a, b) => Math.hypot(a.x - b.x, (a.y - a.h / 2) - (b.y - (b.h || 60) / 2));
+    let face = h.face;
+    if (k.fx === 'dash' || k.fx === 'firewall' || k.fx === 'tornado') {
+      // ท่าพุ่งไปทางเดียว: เลือกฝั่งที่มีมอนสเตอร์มากกว่า
+      const right = list.filter(m => m.x >= h.x - 20).length, left = list.filter(m => m.x <= h.x + 20).length;
+      face = right >= left ? 1 : -1;
+      list = list.filter(m => (m.x - h.x) * face >= -30);
+    }
+    if (k.fx === 'fireball') {
+      const first = list.reduce((a, b) => (dist(a, h) < dist(b, h) ? a : b));
+      list = list.filter(m => dist(m, first) <= k.splash).sort((a, b) => dist(a, first) - dist(b, first));
+    } else {
+      list.sort((a, b) => (b.boss - a.boss) || dist(a, h) - dist(b, h));
+    }
+    list = list.slice(0, k.targets);
+    if (!list.length || !g.useSkill(k)) return false;
+    h.face = face;
+    h.anim = 0.25;
+
+    const pts = list.map(m => ({ x: m.x, y: m.y - m.h / 2 }));
+    const c = list[0], center = { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length };
+    const fx = { type: k.fx, t: 0, x: h.x, y: h.y, face, pts, range: typeof k.range === 'number' ? k.range : 0, vr };
+    let start = 0.08, gap = 0.07, stagger = 0;
+    switch (k.fx) {
+      case 'arc': fx.dur = 0.35; start = 0.05; break;
+      case 'tornado': fx.dur = 0.9; start = 0.15; gap = 0.12; break;
+      case 'dash': fx.dur = 0.45; start = 0.12; gap = 0.05; break;
+      case 'giant': fx.dur = 1.0; start = 0.4; gap = 0.06; fx.boomAt = 0.35; fx.cx = center.x; fx.cy = Math.max(...list.map(m => m.y)); break;
+      case 'beam': fx.dur = 0.6; start = 0.12; gap = 0.06; break;
+      case 'ring': fx.dur = 0.55; start = 0.1; gap = 0.08; break;
+      case 'rain': fx.dur = 1.1; start = 0.3; gap = 0.08; break;
+      case 'fireball': { fx.travel = Math.min(0.5, dist(c, h) / 1100); fx.to = pts[0]; fx.dur = fx.travel + 0.4; start = fx.travel; gap = 0.07; break; }
+      case 'firewall': fx.dur = 1.1; start = 0.15; gap = 0.13; break;
+      case 'bombs': fx.dur = 0.5 + 0.12 * pts.length; start = 0.25; stagger = 0.12; gap = 0.06; break;
+      case 'meteor': fx.dur = 1.2; start = 0.6; gap = 0.06; fx.to = center; fx.boomAt = 0.6; break;
+    }
+    this.skfx.push(fx);
+    list.forEach((m, i) => {
+      for (let n = 0; n < k.hits; n++) this.hits.push({ t: start + i * stagger + n * gap, m, k, row: n });
+    });
+    return true;
   }
 
   // ---------- วาด ----------
@@ -367,6 +435,7 @@ export class Battle {
     c.translate(-this.view.l, -this.view.t);
     c.scale(ZOOM, ZOOM);
     c.translate(-this.cam.x, -this.cam.y);
+    if (this.shake > 0) c.translate((Math.random() - 0.5) * 14 * this.shake / 0.45, (Math.random() - 0.5) * 10 * this.shake / 0.45);
     if (MAP.complete) c.drawImage(MAP, 0, 0, WW, WH);
 
     const ms = [...this.monsters].sort((a, b) => (b.boss ? 1 : 0) - (a.boss ? 1 : 0));
@@ -386,6 +455,7 @@ export class Battle {
       }
       c.restore();
     }
+    for (const f of this.skfx) this.drawSkillFx(f);
     for (const co of this.coins) if (COIN.complete) c.drawImage(COIN, co.x - 9, co.y - 18, 18, 18);
     for (const l of this.loot) {
       c.save(); c.translate(l.x, l.y); c.rotate(l.t * 4);
@@ -398,6 +468,170 @@ export class Battle {
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; c.beginPath(); c.arc(p.x + Math.cos(a) * p.r * (0.5 + p.t * 2), p.y + Math.sin(a) * p.r * (0.5 + p.t * 2), 8 * (1 - p.t / 0.4), 0, 7); c.fill(); }
       c.restore();
     }
+  }
+
+  // ---------- ท่าสกิล (วาดด้วยโค้ด จนกว่าจะมีภาพเอฟเฟกต์จริง) ----------
+  drawSkillFx(f) {
+    const c = this.ctx, p = f.t / f.dur, fade = Math.min(1, (1 - p) * 4), hy = f.y - 34;
+    const glow = (col, blur) => { c.shadowColor = col; c.shadowBlur = blur; };
+    const boom = (x, y, r, a, inner, outer) => {
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(255,255,240,${a})`); g.addColorStop(0.35, inner); g.addColorStop(1, outer);
+      c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+    };
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    switch (f.type) {
+      case 'arc': {   // ครึ่งวงดาบขนาดใหญ่ 2 วงซ้อน
+        c.globalAlpha = fade; c.lineCap = 'round'; glow('#7fe0ff', 20);
+        for (let i = 0; i < 2; i++) {
+          const r = 90 + 70 * Math.min(1, p * 2.5) + i * 30, a0 = -1.6 + i * 0.3;
+          c.strokeStyle = i ? '#7fe0ff' : '#ffffff'; c.lineWidth = 14 - i * 5;
+          c.beginPath();
+          if (f.face > 0) c.arc(f.x, hy, r, a0, a0 + 3.0 * Math.min(1, p * 3));
+          else c.arc(f.x, hy, r, Math.PI - a0, Math.PI - a0 - 3.0 * Math.min(1, p * 3), true);
+          c.stroke();
+        }
+        break;
+      }
+      case 'tornado': {   // พายุหมุนสีแดงขาว เคลื่อนไปข้างหน้า
+        const x = f.x + f.face * f.range * Math.min(1, p * 1.2);
+        c.globalAlpha = fade * 0.9; glow('#ff3a4a', 24);
+        for (let i = 0; i < 9; i++) {
+          const yy = f.y - 10 - i * 20, rw = 26 + i * 9, sp = f.t * 22 + i;
+          c.strokeStyle = i % 2 ? 'rgba(255,60,80,.9)' : 'rgba(255,230,230,.9)'; c.lineWidth = 6;
+          c.beginPath(); c.ellipse(x + Math.sin(sp) * 6, yy, rw, 8, 0, sp % 6.28, sp % 6.28 + 4.4); c.stroke();
+        }
+        break;
+      }
+      case 'dash': {   // แสงดาบพุ่งยาวทะลุแถว
+        const len = f.range * Math.min(1, p * 3), x2 = f.x + f.face * len;
+        c.globalAlpha = fade; glow('#7fe0ff', 26);
+        const g = c.createLinearGradient(f.x, 0, x2, 0);
+        g.addColorStop(0, 'rgba(127,224,255,0)'); g.addColorStop(0.7, 'rgba(200,245,255,.9)'); g.addColorStop(1, '#fff');
+        c.fillStyle = g; c.fillRect(Math.min(f.x, x2), hy - 9, Math.abs(len), 18);
+        c.fillStyle = '#fff'; c.fillRect(Math.min(f.x, x2), hy - 2, Math.abs(len), 4);
+        for (let i = 0; i < 6; i++) { const yy = hy + (i - 2.5) * 12; c.fillStyle = 'rgba(160,230,255,.5)'; c.fillRect(Math.min(f.x, x2), yy, Math.abs(len) * (0.4 + (i % 3) * 0.2), 2); }
+        break;
+      }
+      case 'giant': {   // ดาบยักษ์ปักลงพื้น แล้วคลื่นกระแทกกระจายออก
+        const fall = Math.min(1, f.t / 0.35), x = f.cx, gy = f.cy;
+        const tip = gy - 520 * (1 - fall);
+        c.globalAlpha = fade; glow('#bff4ff', 30);
+        c.fillStyle = 'rgba(220,250,255,.95)';
+        c.beginPath(); c.moveTo(x, tip); c.lineTo(x - 34, tip - 60); c.lineTo(x - 34, tip - 360); c.lineTo(x + 34, tip - 360); c.lineTo(x + 34, tip - 60); c.closePath(); c.fill();
+        c.fillStyle = '#ffd35a'; c.fillRect(x - 80, tip - 380, 160, 22); c.fillRect(x - 12, tip - 450, 24, 70);
+        if (f.t > 0.35) {
+          const q = (f.t - 0.35) / (f.dur - 0.35);
+          c.strokeStyle = `rgba(190,244,255,${1 - q})`; c.lineWidth = 10;
+          c.beginPath(); c.ellipse(x, gy, 60 + q * 700, 18 + q * 60, 0, 0, 7); c.stroke();
+          boom(x, gy - 30, 140 * (1 - q * 0.5), 1 - q, 'rgba(160,230,255,.6)', 'rgba(80,160,255,0)');
+        }
+        break;
+      }
+      case 'beam': {   // ลำแสงตกจากฟ้าลงทุกเป้า
+        c.globalAlpha = fade; glow('#fff3a8', 24);
+        for (const pt of f.pts) {
+          const w = 30 * (1 - p * 0.5);
+          const g = c.createLinearGradient(pt.x - w, 0, pt.x + w, 0);
+          g.addColorStop(0, 'rgba(255,240,150,0)'); g.addColorStop(0.5, 'rgba(255,255,230,.95)'); g.addColorStop(1, 'rgba(255,240,150,0)');
+          c.fillStyle = g; c.fillRect(pt.x - w, pt.y - 600, w * 2, 640);
+          boom(pt.x, pt.y, 50, 0.9, 'rgba(255,230,120,.6)', 'rgba(255,200,60,0)');
+        }
+        break;
+      }
+      case 'ring': {   // วงแสงขยายออกจากตัว
+        const r = f.range * Math.min(1, p * 1.6);
+        c.globalAlpha = fade; glow('#ffe27a', 30);
+        c.strokeStyle = 'rgba(255,240,170,.95)'; c.lineWidth = 12;
+        c.beginPath(); c.arc(f.x, hy, r, 0, 7); c.stroke();
+        c.lineWidth = 4; c.strokeStyle = '#fff';
+        c.beginPath(); c.arc(f.x, hy, r * 0.8, 0, 7); c.stroke();
+        boom(f.x, hy, r * 0.7, 0.35, 'rgba(255,230,120,.25)', 'rgba(255,200,60,0)');
+        break;
+      }
+      case 'bless': {   // เสาแสงสีทองบนตัวเรา
+        c.globalAlpha = fade; glow('#ffe27a', 30);
+        const g = c.createLinearGradient(f.x - 60, 0, f.x + 60, 0);
+        g.addColorStop(0, 'rgba(255,220,100,0)'); g.addColorStop(0.5, 'rgba(255,245,200,.85)'); g.addColorStop(1, 'rgba(255,220,100,0)');
+        c.fillStyle = g; c.fillRect(f.x - 60, f.y - 500, 120, 510);
+        for (let i = 0; i < 14; i++) {
+          const a = i * 2.4, yy = f.y - ((f.t * 260 + i * 37) % 200);
+          c.fillStyle = '#fff6c0'; c.beginPath(); c.arc(f.x + Math.sin(a + f.t * 4) * 40, yy, 4, 0, 7); c.fill();
+        }
+        break;
+      }
+      case 'rain': {   // ฝนแสงทั้งจอ
+        c.globalAlpha = fade; glow('#fff3a8', 16);
+        const vr = f.vr, w = vr.x2 - vr.x1;
+        for (let i = 0; i < 46; i++) {
+          const x = vr.x1 + (i / 46) * w + Math.sin(i * 7) * 20;
+          const y = vr.y1 + ((f.t * 1100 + i * 131) % (vr.y2 - vr.y1 + 200)) - 100;
+          c.strokeStyle = i % 3 ? 'rgba(255,245,190,.9)' : '#fff'; c.lineWidth = i % 3 ? 4 : 6;
+          c.beginPath(); c.moveTo(x - 18, y - 70); c.lineTo(x, y); c.stroke();
+        }
+        for (const pt of f.pts) if (f.t > 0.3) boom(pt.x, pt.y, 46, 0.8, 'rgba(255,230,120,.5)', 'rgba(255,200,60,0)');
+        break;
+      }
+      case 'fireball': {   // ลูกไฟพุ่งใส่ แล้วระเบิด
+        const q = Math.min(1, f.t / f.travel), to = f.to;
+        if (q < 1) {
+          const x = f.x + (to.x - f.x) * q, y = hy + (to.y - hy) * q;
+          glow('#ff7a2a', 30); boom(x, y, 26, 1, 'rgba(255,160,40,.95)', 'rgba(255,60,0,0)');
+        } else {
+          const e = (f.t - f.travel) / (f.dur - f.travel);
+          c.globalAlpha = 1 - e; glow('#ff5a1a', 30);
+          boom(to.x, to.y, 60 + e * 110, 1, 'rgba(255,150,30,.85)', 'rgba(255,40,0,0)');
+        }
+        break;
+      }
+      case 'firewall': {   // เปลวไฟลุกเป็นแนวยาวข้างหน้า
+        c.globalAlpha = fade; glow('#ff5a1a', 20);
+        const n = 14, rise = Math.min(1, p * 4);
+        for (let i = 0; i < n; i++) {
+          const x = f.x + f.face * (40 + i / (n - 1) * (f.range - 40)), fl = Math.sin(f.t * 30 + i * 2) * 0.15 + 1;
+          const hgt = 110 * rise * fl;
+          const g = c.createLinearGradient(0, f.y, 0, f.y - hgt);
+          g.addColorStop(0, 'rgba(255,240,180,.95)'); g.addColorStop(0.4, 'rgba(255,140,30,.85)'); g.addColorStop(1, 'rgba(255,40,0,0)');
+          c.fillStyle = g;
+          c.beginPath(); c.moveTo(x - 24, f.y); c.quadraticCurveTo(x - 20, f.y - hgt * 0.6, x, f.y - hgt); c.quadraticCurveTo(x + 20, f.y - hgt * 0.6, x + 24, f.y); c.fill();
+        }
+        break;
+      }
+      case 'bombs': {   // ระเบิดทีละจุดไล่ไปทุกเป้า
+        f.pts.forEach((pt, i) => {
+          const e = (f.t - 0.25 - i * 0.12) / 0.4;
+          if (e < -0.6 || e > 1) return;
+          if (e < 0) {   // ลูกระเบิดตกลงมา
+            const y = pt.y - 160 * -e / 0.6;
+            c.fillStyle = '#333'; c.beginPath(); c.arc(pt.x, y, 10, 0, 7); c.fill();
+            return;
+          }
+          c.globalAlpha = 1 - e; glow('#ff7a2a', 24);
+          boom(pt.x, pt.y, 40 + e * 70, 1, 'rgba(255,170,50,.9)', 'rgba(255,50,0,0)');
+        });
+        break;
+      }
+      case 'meteor': {   // อุกกาบาตตกเฉียงลงกลางกลุ่มมอนสเตอร์ แล้วระเบิดใหญ่
+        const to = f.to, q = Math.min(1, f.t / 0.6);
+        if (q < 1) {
+          const x = to.x - 420 * (1 - q), y = to.y - 620 * (1 - q);
+          glow('#ff7a2a', 40);
+          for (let i = 6; i >= 0; i--) boom(x - i * 26, y - i * 38, 30 + (6 - i) * 4, 0.5, `rgba(255,${120 + i * 15},40,.5)`, 'rgba(255,40,0,0)');
+          c.globalCompositeOperation = 'source-over';
+          c.fillStyle = '#5a3a2a'; c.beginPath(); c.arc(x, y, 34, 0, 7); c.fill();
+          c.fillStyle = '#ff9a3a'; c.beginPath(); c.arc(x + 8, y + 8, 22, 0, 7); c.fill();
+        } else {
+          const e = (f.t - 0.6) / 0.6;
+          c.globalAlpha = 1 - e; glow('#ff5a1a', 40);
+          boom(to.x, to.y, 120 + e * 320, 1, 'rgba(255,150,30,.85)', 'rgba(255,40,0,0)');
+          c.strokeStyle = `rgba(255,200,120,${1 - e})`; c.lineWidth = 10;
+          c.beginPath(); c.ellipse(to.x, to.y + 30, 100 + e * 600, 30 + e * 80, 0, 0, 7); c.stroke();
+        }
+        break;
+      }
+    }
+    c.restore();
   }
 
   drawMonster(m) {

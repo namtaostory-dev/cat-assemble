@@ -1,5 +1,5 @@
 // กลไกเกมล้วนๆ ไม่แตะหน้าจอ: สูตร ดาเมจ ด่าน บอส การซื้อ กาชา ดาว สกิล
-import { BAL, CATS, RARITY, GACHA, STAR, SKILLS, ZONES, LEVEL, EQUIP } from './config.js';
+import { BAL, CATS, RARITY, GACHA, STAR, PASSIVES, WEAPONS, WSKILLS, WSKILL_PLUS, ZONES, LEVEL, EQUIP } from './config.js';
 
 export const hpOf = s =>
   BAL.hpBase * BAL.hpGrowth ** Math.min(s, BAL.hpLateStart) * BAL.hpLateGrowth ** Math.max(s - BAL.hpLateStart, 0);
@@ -23,6 +23,7 @@ export function itemValue(it) {
 }
 export function itemName(it) {
   if (it.slot === 'outfit') return EQUIP.outfits[it.look || 0].name;
+  if (it.slot === 'weapon') return `${WEAPONS[it.kind || 'sword'].name}${EQUIP.rarity[it.rarity].name}`;
   return `${EQUIP.slots[it.slot].name}${EQUIP.rarity[it.rarity].name}`;
 }
 
@@ -42,14 +43,16 @@ export class Game {
   }
 
   // ---------- ค่าที่คำนวณจากสถานะ ----------
-  active(id, now = Date.now()) { return !!this.s.cats[id] && (this.s.skillUntil[id] || 0) > now; }
   power(id) { return skillPower(this.s.cats[id]?.star || 1); }
   inTeam(id) { return this.s.team.includes(id); }
-  // ค่าพาสซีฟจากแมวในทีม (0 ถ้าไม่มี) คืนพลังตามดาวของตัวที่มีพาสซีฟนั้น
+  // ค่าพาสซีฟจากแมวในทีม (0 ถ้าไม่มี)
   passive(type) {
     const c = CATS.find(x => x.passive === type && this.inTeam(x.id));
-    return c ? this.power(c.id) : 0;
+    return c ? PASSIVES[type].v(this.power(c.id)) : 0;
   }
+  // บัฟจากสกิล (เช่นพรแห่งแสง) ยังทำงานอยู่ไหม
+  buffed(id, now = Date.now()) { return (this.s.skillUntil[id] || 0) > now; }
+  buffDmg(now) { return WSKILLS.reduce((m, k) => m * (k.buff && this.buffed(k.id, now) ? 1 + k.buff.dmg : 1), 1); }
 
   // ค่าพลังรวมจากอุปกรณ์ที่สวมอยู่ (หน่วย %)
   // คำนวณครั้งเดียวแล้วจำไว้ ล้างทิ้งเมื่อสวม/ถอด/ตีบวก
@@ -72,8 +75,7 @@ export class Game {
     const c = this.s.cats[id];
     if (!c || !this.inTeam(id)) return 0;
     const g = this.gear();
-    return catDpsAt(id, c.lv, c.star) * (this.active('lumi') ? 1 + this.power('lumi') : 1) * (1 + 0.1 * this.passive('teamDps'))
-      * this.levelMul() * (1 + g.all / 100);
+    return catDpsAt(id, c.lv, c.star) * (1 + this.passive('teamDps')) * this.levelMul() * (1 + g.all / 100) * this.buffDmg();
   }
   totalDps() { return this.s.team.reduce((sum, id) => sum + this.catDps(id), 0); }
   baseDps() {
@@ -81,27 +83,27 @@ export class Game {
   }
   slashDamage() {
     const g = this.gear();
-    return swordDmgAt(this.s.swordLv) * this.levelMul() * (1 + g.dmg / 100) * (1 + g.all / 100);
+    return swordDmgAt(this.s.swordLv) * this.levelMul() * (1 + g.dmg / 100) * (1 + g.all / 100) * this.buffDmg();
   }
   autoRate() {
     const base = BAL.speedBase + BAL.speedPerLevel * this.s.speedLv;
-    return base * (1 + this.gear().speed / 100) * (this.active('gale') ? 1 + 2 * this.power('gale') : 1);
+    return base * (1 + this.gear().speed / 100) * (1 + this.passive('speed'));
   }
   heroDps() { return this.slashDamage() * this.autoRate() * (1 + this.critChance() * (this.critMul() - 1)); }
   critChance() {
-    const c = BAL.baseCrit + this.gear().crit / 100 + 0.05 * this.passive('crit') + (this.active('volt') ? 0.3 * this.power('volt') : 0);
+    const c = BAL.baseCrit + this.gear().crit / 100 + this.passive('crit');
     return Math.min(0.75, c);
   }
-  critMul() { return BAL.critMul * (1 + this.gear().critDmg / 100) * (this.active('nox') ? 1 + 2 * this.power('nox') : 1); }
-  goldMul(now) { return (1 + this.gear().gold / 100) * (this.active('rock', now) ? 1 + this.power('rock') : 1); }
-  bossTimeLimit() { return isBigBoss(this.s.stage) ? BAL.bigBossTime : BAL.bossTime; }
+  critMul() { return BAL.critMul * (1 + this.gear().critDmg / 100 + this.passive('critDmg')); }
+  goldMul() { return (1 + this.gear().gold / 100) * (1 + this.passive('gold')); }
+  bossTimeLimit() { return (isBigBoss(this.s.stage) ? BAL.bigBossTime : BAL.bossTime) + this.passive('bossTime'); }
   gems() { return this.s.gemsFree + this.s.gemsPaid; }
 
   // ---------- ศัตรูและบอส (ตัวมอนสเตอร์อยู่ใน battle.js ที่นี่ดูแลตัวเลขและรางวัล) ----------
   monsterHp() { return hpOf(this.s.stage); }
   bossHp() {
     const s = this.s.stage, big = isBigBoss(s);
-    const cut = Math.min(0.5, 0.1 * this.passive('bossHp'));
+    const cut = this.passive('bossHp');
     return hpOf(s) * BAL.bossHpMul * (big ? BAL.bigBossMul : 1) * (1 - cut);
   }
   monsterName(boss) {
@@ -134,9 +136,9 @@ export class Game {
 
   // มอนสเตอร์ตาย: ให้รางวัล นับความคืบหน้า และขึ้นด่านถ้าเป็นบอส
   killed(e) {
-    const s = this.s, now = Date.now();
+    const s = this.s;
     s.stats.kills++;
-    let gold = goldOf(s.stage) * this.goldMul(now), gems = 0;
+    let gold = goldOf(s.stage) * this.goldMul(), gems = 0;
     if (e.boss) {
       gold *= BAL.bossHpMul * (e.big ? BAL.bigBossMul : 1);
       gems = BAL.gemsPerBoss + (e.big ? BAL.gemsBigBoss : 0);
@@ -152,7 +154,7 @@ export class Game {
     s.gold += gold;
     s.gemsFree += gems;
     const stageAtKill = e.boss ? s.stage - 1 : s.stage;
-    this.gainExp(LEVEL.expPerMonster(stageAtKill) * (e.boss ? LEVEL.expBossMul : 1));
+    this.gainExp(LEVEL.expPerMonster(stageAtKill) * (e.boss ? LEVEL.expBossMul : 1) * (1 + this.passive('exp')));
     const drop = e.boss || Math.random() < EQUIP.dropRate ? this.rollItem(stageAtKill, e.boss) : null;
     this.hooks.onKill?.(e, gold, gems, drop);
     if (e.boss) this.hooks.onStage?.(s.stage);
@@ -180,6 +182,7 @@ export class Game {
     if (slot === 'outfit' && Math.random() < 0.5) slot = slots[Math.floor(Math.random() * (slots.length - 1))];
     const it = { uid: s.nextUid++, slot, rarity, lv: stage, plus: 0 };
     if (slot === 'outfit') it.look = Math.floor(Math.random() * EQUIP.outfits.length);
+    if (slot === 'weapon') { const kinds = Object.keys(WEAPONS); it.kind = kinds[Math.floor(Math.random() * kinds.length)]; }
     s.items.push(it);
     return it;
   }
@@ -235,7 +238,7 @@ export class Game {
   // dt เป็นวินาที เรียกทุกเฟรม
   tick(dt) {
     this.tapTokens = Math.min(BAL.tapMaxPerSec, this.tapTokens + dt * BAL.tapMaxPerSec);
-    if (this.bossActive && !this.active('frost')) {
+    if (this.bossActive) {
       this.bossLeft -= dt;
       if (this.bossLeft <= 0) {
         this.bossActive = false;
@@ -350,27 +353,33 @@ export class Game {
     return true;
   }
 
-  // ---------- สกิล ----------
-  skillState(id, now = Date.now()) {
-    if (!this.s.cats[id] || !this.inTeam(id)) return { locked: true };
-    const cd = SKILLS[id].cd;
-    const left = Math.max(0, ((this.s.skillReadyAt[id] || 0) - now) / 1000);
-    const activeLeft = Math.max(0, ((this.s.skillUntil[id] || 0) - now) / 1000);
-    return { locked: false, ready: left <= 0, left, frac: left / cd, activeLeft };
+  // ---------- สกิลตามอาวุธ ----------
+  weapon() { return this.item(this.s.equip.weapon); }
+  weaponKind() { return this.weapon()?.kind || 'sword'; }
+  // สกิล 4 ช่องของอาวุธที่สวมอยู่ เรียงตามเลเวลที่ปลด
+  skillList() { return WSKILLS.filter(k => k.kind === this.weaponKind()); }
+  skillCd(k) { return k.cd * (1 - this.passive('cooldown')); }
+  skillState(k, now = Date.now()) {
+    if (this.s.level < k.lv) return { locked: true };
+    const cd = this.skillCd(k);
+    const left = Math.max(0, ((this.s.skillReadyAt[k.id] || 0) - now) / 1000);
+    const activeLeft = Math.max(0, ((this.s.skillUntil[k.id] || 0) - now) / 1000);
+    return { locked: false, ready: left <= 0, left: Math.min(left, cd), frac: Math.min(1, left / cd), activeLeft };
   }
-  useSkill(id) {
-    const st = this.skillState(id);
+  // ดาเมจสกิลหนึ่งครั้ง (สุ่มคริแยกทุกครั้ง) ใส่บอสแรงขึ้นตามพาสซีฟ
+  rollSkill(k, boss) {
+    const w = this.weapon(), crit = Math.random() < this.critChance();
+    const amount = this.slashDamage() * k.mul * (1 + WSKILL_PLUS * (w ? w.plus : 0)) * (1 + this.passive('skillDmg'))
+      * (boss ? 1 + this.passive('bossDmg') : 1) * (crit ? this.critMul() : 1);
+    return { amount, crit };
+  }
+  // เริ่มคูลดาวน์ (และบัฟถ้ามี) คืน false ถ้ายังไม่พร้อม ตัวฉากเป็นคนเลือกเป้าและทำดาเมจ
+  useSkill(k) {
+    const st = this.skillState(k);
     if (st.locked || !st.ready) return false;
-    const now = Date.now(), sk = SKILLS[id], p = this.power(id);
-    this.s.skillReadyAt[id] = now + sk.cd * 1000;
-    const dur = id === 'frost' ? sk.dur * p : sk.dur;
-    if (dur) this.s.skillUntil[id] = now + dur * 1000;
-    this.hooks.onSkill?.(id);
-    // สกิลดาเมจ: aoe = โดนมอนสเตอร์ทุกตัวในจอ, single = ตัวที่ตัวเราเล็งอยู่
-    if (id === 'blaze') this.hooks.onSkillDamage?.(id, this.slashDamage() * 60 * p, 'aoe', false);
-    if (id === 'bombardier') this.hooks.onSkillDamage?.(id, this.totalDps() * 15 * p, 'aoe', false);
-    if (id === 'empress') this.hooks.onSkillDamage?.(id, this.totalDps() * 30 * p, 'aoe', false);
-    if (id === 'saboteur') this.hooks.onSkillDamage?.(id, this.slashDamage() * 40 * p * this.critMul(), 'single', true);
+    const now = Date.now();
+    this.s.skillReadyAt[k.id] = now + this.skillCd(k) * 1000;
+    if (k.buff) this.s.skillUntil[k.id] = now + k.buff.dur * 1000;
     return true;
   }
 

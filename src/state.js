@@ -1,4 +1,4 @@
-import { BAL, CATS, STAR, STARTER, EQUIP, LEVEL, SAVE_KEY, SAVE_VERSION } from './config.js';
+import { BAL, CATS, STAR, STARTER, EQUIP, LEVEL, WEAPONS, WSKILLS, SAVE_KEY, SAVE_VERSION } from './config.js';
 
 export function newState() {
   return {
@@ -16,13 +16,14 @@ export function newState() {
     team: [STARTER],
     pity: 0,           // นับครั้งที่เปิดกาชาตั้งแต่ได้ SSR ล่าสุด
     pulls: 0,
-    skillReadyAt: {},  // id → Date.now() ที่ใช้ได้อีกครั้ง
-    skillUntil: {},    // id → Date.now() ที่บัฟหมด
+    skillReadyAt: {},  // id สกิลอาวุธ → Date.now() ที่ใช้ได้อีกครั้ง
+    skillUntil: {},    // id สกิลอาวุธ → Date.now() ที่บัฟหมด
+    autoSkill: true,   // ร่ายสกิลเองเมื่อคูลดาวน์หมด
     lastSeen: Date.now(),
     stats: { taps: 0, kills: 0, bosses: 0 },
     level: 1,
     exp: 0,
-    items: [],         // { uid, slot, rarity, lv, plus, look? }
+    items: [],         // { uid, slot, rarity, lv, plus, look?, kind? }
     equip: {},         // ช่อง → uid
     nextUid: 1,
   };
@@ -34,7 +35,7 @@ const int = (v, def, min = 0) => Math.floor(num(v, def, min));
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const timeMap = m => {
   const out = {};
-  for (const c of CATS) if (typeof obj(m)[c.id] === 'number' && isFinite(m[c.id])) out[c.id] = m[c.id];
+  for (const k of WSKILLS) if (typeof obj(m)[k.id] === 'number' && isFinite(m[k.id])) out[k.id] = m[k.id];
   return out;
 };
 // ลำดับแมวในเซฟเวอร์ชัน 1 (แบ่งตามธาตุ) → แมวตัวใหม่
@@ -60,6 +61,7 @@ function migrate(data) {
     pulls: int(d.pulls, 0),
     skillReadyAt: timeMap(d.skillReadyAt),
     skillUntil: timeMap(d.skillUntil),
+    autoSkill: d.autoSkill !== false,
     lastSeen: num(d.lastSeen, Date.now()),
     stats: { taps: int(st.taps, 0), kills: int(st.kills, 0), bosses: int(st.bosses, 0) },
     level: int(d.level, 1, 1),
@@ -72,14 +74,15 @@ function migrate(data) {
   // อุปกรณ์: เก็บเฉพาะชิ้นที่ข้อมูลถูกต้อง
   if (Array.isArray(d.items)) for (const it of d.items.slice(0, EQUIP.invMax + 10)) {
     const x = obj(it);
-    if (!EQUIP.slots[x.slot] || !EQUIP.rarity[x.rarity]) continue;
+    if (!Object.hasOwn(EQUIP.slots, x.slot) || !Object.hasOwn(EQUIP.rarity, x.rarity)) continue;
     const item = { uid: int(x.uid, 0, 1), slot: x.slot, rarity: x.rarity, lv: int(x.lv, 1, 1), plus: Math.min(EQUIP.enhanceMax, int(x.plus, 0)) };
     if (x.slot === 'outfit') item.look = Math.min(EQUIP.outfits.length - 1, int(x.look, 0));
+    if (x.slot === 'weapon') item.kind = Object.hasOwn(WEAPONS, x.kind) ? x.kind : 'sword';
     if (item.uid && !s.items.some(o => o.uid === item.uid)) s.items.push(item);
   }
   for (const [slot, uid] of Object.entries(obj(d.equip))) {
     const it = s.items.find(o => o.uid === uid);
-    if (EQUIP.slots[slot] && it && it.slot === slot) s.equip[slot] = uid;
+    if (Object.hasOwn(EQUIP.slots, slot) && it && it.slot === slot) s.equip[slot] = uid;
   }
   s.nextUid = Math.max(s.nextUid, ...s.items.map(o => o.uid + 1));
 
