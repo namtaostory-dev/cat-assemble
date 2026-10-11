@@ -20,7 +20,8 @@ function fit() {
   scale = Math.min(w / W, h / H);
   const x = l + (w - W * scale) / 2, y = t + (h - H * scale) / 2;
   gameEl.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
-  battle?.resize(scale);
+  // ฉากวาดเต็มจอ (รวมขอบนอกกรอบเกม) ส่วน HUD อยู่ในกรอบที่หลบ safe area
+  battle?.resize(scale, { l: -x / scale, t: -y / scale, w: window.innerWidth / scale, h: window.innerHeight / scale });
 }
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', () => setTimeout(fit, 250));
@@ -113,7 +114,7 @@ function lvupFx(lv, newSlot) {
   d.className = 'lvup';
   d.innerHTML = `LEVEL UP! ${lv}` + (newSlot ? `<small>ปลดช่องคู่หูใหม่! เรียกได้ ${slotsAtLevel(lv)} ตัว</small>` : '');
   d.style.left = battle.sx(battle.hero.x) + 'px';
-  d.style.top = Math.max(50, battle.sy(battle.hero.y) - 150) + 'px';
+  d.style.top = Math.max(50, battle.sy(battle.hero.y) - 110) + 'px';
   addFx(d, 1400);
 }
 function flash(color) {

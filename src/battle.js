@@ -7,7 +7,8 @@ const img = src => { const i = new Image(); i.src = src; return i; };
 export const W = 844, H = 390;          // ขนาดจอ (หน่วยฉาก)
 
 // แผนที่ป่าซากปรักหักพัง: ภาพ 1376×768 (แท่นวัดในพิกัด 1024×572) ขยาย ×1.6 → โลกกว้าง 1638×915 กล้องเลื่อนตามตัวเรา
-const MAP_SCALE = 1.6;
+const MAP_SCALE = 1.4;
+const ZOOM = 0.7;           // กล้องซูมออก: ตัวละครเล็กลง เห็นแผนที่กว้างขึ้น
 export const WW = Math.round(1024 * MAP_SCALE), WH = Math.round(572 * MAP_SCALE);
 const MAP = img('assets/scenes/forest.webp');
 // แท่นวัดจากภาพ (พิกัดในภาพ x1, x2, y ของขอบหญ้า) floor = พื้นที่กระโดดลงทะลุไม่ได้
@@ -59,11 +60,12 @@ export class Battle {
     this.game = game;
     this.ui = ui;              // { pop(entity, text, cls, key), tapFx(x,y), coinTo: {x,y}, flash(color) }
     this.k = 1;
+    this.view = { l: 0, t: 0, w: W, h: H };   // พื้นที่ที่ canvas ครอบ (หน่วยฉาก เทียบมุมกรอบเกม) ล้นกรอบเต็มจอได้
     this.reset();
   }
 
   reset() {
-    this.cam = { x: 0, y: WH - H };
+    this.cam = { x: 0, y: WH - H / ZOOM };
     this.hero = { x: 120, y: GROUND, vy: 0, face: 1, plat: PLATFORMS[0], attackCD: 0, anim: 0, frame: 0, stuck: 0, drop: 0, walking: false, lastX: 140 };
     this.monsters = [];
     this.shots = [];
@@ -76,10 +78,12 @@ export class Battle {
   }
 
   // ความละเอียดจริงของ canvas = ขนาดฉาก × สเกลบนจอ × ความหนาแน่นพิกเซล
-  resize(scale) {
+  resize(scale, view = { l: 0, t: 0, w: W, h: H }) {
+    this.view = view;
     this.k = scale * (window.devicePixelRatio || 1);
-    this.cv.width = Math.round(W * this.k);
-    this.cv.height = Math.round(H * this.k);
+    Object.assign(this.cv.style, { left: view.l + 'px', top: view.t + 'px', width: view.w + 'px', height: view.h + 'px' });
+    this.cv.width = Math.round(view.w * this.k);
+    this.cv.height = Math.round(view.h * this.k);
   }
 
   // ---------- แมวในทีม: ลอยตามหลังตัวเรา ----------
@@ -244,12 +248,17 @@ export class Battle {
   }
 
   // ---------- กล้อง ----------
-  sx(x) { return x - this.cam.x; }
-  sy(y) { return y - this.cam.y; }
+  // cam = จุดในโลกที่ตรงกับมุมซ้ายบนของกรอบเกม
+  sx(x) { return (x - this.cam.x) * ZOOM; }
+  sy(y) { return (y - this.cam.y) * ZOOM; }
   updateCam(dt, snap) {
-    const h = this.hero;
-    const tx = Math.min(WW - W, Math.max(0, h.x - W / 2));
-    const ty = Math.min(WH - H, Math.max(0, h.y - H * 0.62));
+    const h = this.hero, v = this.view;
+    const clamp = (want, lo, size, world) => {
+      const min = -lo / ZOOM, max = world - (lo + size) / ZOOM;
+      return min > max ? (min + max) / 2 : Math.min(max, Math.max(min, want));
+    };
+    const tx = clamp(h.x - W / 2 / ZOOM, v.l, v.w, WW);
+    const ty = clamp(h.y - H * 0.62 / ZOOM, v.t, v.h, WH);
     const k = snap ? 1 : Math.min(1, dt * 5);
     this.cam.x += (tx - this.cam.x) * k;
     this.cam.y += (ty - this.cam.y) * k;
@@ -325,7 +334,7 @@ export class Battle {
         if (c.y > c.ground) { c.y = c.ground; c.vy *= -0.4; c.vx *= 0.6; }
         if (c.t > 0.7) c.fly = true;
       } else {
-        const to = this.ui.coinTo, dx = to.x + this.cam.x - c.x, dy = to.y + this.cam.y - c.y, d = Math.hypot(dx, dy), v = 900 * dt;
+        const to = this.ui.coinTo, dx = to.x / ZOOM + this.cam.x - c.x, dy = to.y / ZOOM + this.cam.y - c.y, d = Math.hypot(dx, dy), v = 900 * dt;
         if (d < v) c.done = true; else { c.x += dx / d * v; c.y += dy / d * v; }
       }
     }
@@ -334,7 +343,7 @@ export class Battle {
       l.t += dt;
       if (l.t < 0.7) { l.vy += GRAV * 0.6 * dt; l.y += l.vy * dt; }
       else {
-        const to = this.ui.bagTo, dx = to.x + this.cam.x - l.x, dy = to.y + this.cam.y - l.y, d = Math.hypot(dx, dy), v = 700 * dt;
+        const to = this.ui.bagTo, dx = to.x / ZOOM + this.cam.x - l.x, dy = to.y / ZOOM + this.cam.y - l.y, d = Math.hypot(dx, dy), v = 700 * dt;
         if (d < v) l.done = true; else { l.x += dx / d * v; l.y += dy / d * v; }
       }
     }
@@ -353,9 +362,11 @@ export class Battle {
   draw() {
     const c = this.ctx;
     c.setTransform(this.k, 0, 0, this.k, 0, 0);
-    c.clearRect(0, 0, W, H);
+    c.clearRect(0, 0, this.view.w, this.view.h);
     c.imageSmoothingEnabled = true;
-    c.translate(-Math.round(this.cam.x * 2) / 2, -Math.round(this.cam.y * 2) / 2);
+    c.translate(-this.view.l, -this.view.t);
+    c.scale(ZOOM, ZOOM);
+    c.translate(-this.cam.x, -this.cam.y);
     if (MAP.complete) c.drawImage(MAP, 0, 0, WW, WH);
 
     const ms = [...this.monsters].sort((a, b) => (b.boss ? 1 : 0) - (a.boss ? 1 : 0));
