@@ -6,7 +6,7 @@ import { catById, itemName } from './game.js';
 const img = src => { const i = new Image(); i.src = src; return i; };
 export const W = 844, H = 390;          // ขนาดจอ (หน่วยฉาก)
 
-// แผนที่ป่าซากปรักหักพัง: ภาพ 1024×572 ขยาย ×1.6 → โลกกว้าง 1638×915 กล้องเลื่อนตามตัวเรา
+// แผนที่ป่าซากปรักหักพัง: ภาพ 1376×768 (แท่นวัดในพิกัด 1024×572) ขยาย ×1.6 → โลกกว้าง 1638×915 กล้องเลื่อนตามตัวเรา
 const MAP_SCALE = 1.6;
 export const WW = Math.round(1024 * MAP_SCALE), WH = Math.round(572 * MAP_SCALE);
 const MAP = img('assets/scenes/forest.webp');
