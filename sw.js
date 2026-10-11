@@ -1,5 +1,5 @@
 // เพิ่มไฟล์ใหม่ในเกมเมื่อไหร่ ให้ใส่ใน SHELL และเปลี่ยนเลขเวอร์ชัน
-const CACHE = 'cat-assemble-v28';
+const CACHE = 'cat-assemble-v29';
 const SHELL = [
   './',
   'index.html',
@@ -46,6 +46,7 @@ const SHELL = [
   'assets/scenes/ruins.png',
   'assets/scenes/forest.webp',
   'assets/scenes/market.webp',
+  'assets/scenes/beach.webp',
   'assets/ui/ico-market.png',
   'assets/enemies/golem.png',
   'assets/ui/ico-setting.png',

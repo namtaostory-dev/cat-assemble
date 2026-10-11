@@ -116,6 +116,7 @@ export class Game {
     return names[(this.s.stage + this.s.kills + Math.floor(Math.random() * 3)) % names.length];
   }
   zoneHue() { return zoneOf(this.s.stage).hue; }
+  mapId() { return zoneOf(this.s.stage).map; }
   wantsBoss() { return !this.s.farming && this.s.kills >= BAL.enemiesPerStage; }
   startBoss() { this.bossActive = true; this.bossLeft = this.bossTimeLimit(); }
 
