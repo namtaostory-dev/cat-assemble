@@ -283,3 +283,10 @@ button { font:inherit; color:inherit; }
 .box.item .btn { font-size:13px; padding:8px 12px; }
 .imclose { position:absolute; right:10px; top:10px; }
 .sk.lock { opacity:.6; pointer-events:none; border:2px dashed #3b4d74; display:grid; place-items:center; font-size:10px; color:#aab6d3; }
+
+/* ระดับ C */
+.rar.C { background:#a8b4c4; }
+.r-c { color:#c4ccd8; font-weight:500; }
+.bcat.C { border-color:#3a4562; }
+.gc.C { background:#ececec; border-color:#a8b4c4; }
+.gshow.c .gtitle { color:#cfe6ff; -webkit-text-stroke-color:#1d2a44; font-size:34px; }

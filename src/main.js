@@ -322,7 +322,7 @@ function updateHeroList() {
       q = game.quote('cat', buyMode, id);
       const need = game.starCost(id);
       const starBtn = need === null ? '' :
-        `<button class="starup ${o.dupes >= need ? 'ok' : ''}" data-star="${id}">อัปดาว ${o.dupes}/${need}</button>`;
+        `<button class="starup ${o.dupes >= need ? 'ok' : ''}" data-star="${id}">อัปดาว · Shards ${o.dupes}/${need}</button>`;
       const inTeam = state.team.includes(id), p = skillPower(o.star);
       nm = `${c.name}<span class="rar ${c.rarity}">${c.rarity}</span> <small>Lv ${o.lv}</small><button class="teambtn ${inTeam ? 'on' : ''}" data-team="${id}">${inTeam ? 'ช่วยสู้อยู่' : 'เรียก'}</button>`;
       sub = `${starsHtml(o.star)}${starBtn}<br>DPS ${fmt(inTeam ? game.catDps(id) : 0)} · ${SKILLS[id].name}: ${SKILLS[id].desc(p)}` +
@@ -354,7 +354,7 @@ $('heroList').addEventListener('click', e => {
   if (star) {
     const id = star.dataset.star;
     if (game.starUp(id)) { toast(`${catById(id).name} ★${state.cats[id].star}!`); saveState(state); }
-    else toast(`ต้องได้${catById(id).name}ซ้ำอีก ${game.starCost(id) - state.cats[id].dupes} ตัว`);
+    else toast(`ต้องการ Shards ของ${catById(id).name}อีก ${game.starCost(id) - state.cats[id].dupes} ชิ้น`);
     updateHeroList(); return;
   }
   const b = e.target.closest('.buy');
@@ -373,7 +373,7 @@ $('modes').addEventListener('click', e => {
 
 // ---------- กาชา ----------
 function buildBanner() {
-  const order = ['SSR', 'SR', 'R'];
+  const order = ['SSR', 'SR', 'R', 'C'];
   $('banner').innerHTML = [...CATS].sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity)).map(c => {
     const o = state.cats[c.id];
     return `<div class="bcat ${c.rarity}"><span class="rar ${c.rarity}">${c.rarity}</span>${o ? `<span class="own">★${o.star}</span>` : ''}<img src="assets/cats/${c.img}.png" alt=""><div class="nm">${c.name}</div></div>`;
@@ -387,13 +387,13 @@ function updateGacha() {
   $('pull10').disabled = g < GACHA.cost10;
 }
 // ---------- หน้าผลกาชา ----------
-const RANK = { SSR: 3, SR: 2, R: 1 };
-const TITLE = { SSR: 'SSR<small>ตำนาน!</small>', SR: 'SR<small>หายาก!</small>', R: 'ได้แมวแล้ว!' };
+const RANK = { SSR: 3, SR: 2, R: 1, C: 0 };
+const TITLE = { SSR: 'SSR<small>ตำนาน!</small>', SR: 'SR<small>หายาก!</small>', R: 'ได้แมวแล้ว!', C: 'ได้แมวแล้ว!' };
 let lastPull = 1;
 function resultNote(r) {
   if (r.isNew) return '<div class="note new">ใหม่!</div>';
   if (r.refund) return `<div class="note">★5 แล้ว +${r.refund} เพชร</div>`;
-  return `<div class="note${r.canStar ? ' new' : ''}">ซ้ำ +1${r.canStar ? ' อัปดาวได้' : ''}</div>`;
+  return `<div class="note${r.canStar ? ' new' : ''}">+1 Shard${r.canStar ? ' อัปดาวได้' : ''}</div>`;
 }
 function smallCard(r, delay) {
   const c = catById(r.id);
@@ -516,7 +516,8 @@ function showItem(uid) {
   }
   $('imEquip').textContent = equipped ? 'ถอด' : 'สวม';
   const maxed = it.plus >= EQUIP.enhanceMax;
-  $('imEnhance').innerHTML = maxed ? 'ตีบวกเต็มแล้ว' : `ตีบวก +${it.plus + 1} · ${Math.round(game.enhanceRate(it) * 100)}% · <img src="assets/ui/coin.png" alt=""> ${fmt(game.enhanceCost(it), true)}`;
+  const risk = { none: '', down: ' · พลาดลด 1 ขั้น', break: ` · พลาดแตกได้ ${Math.round(EQUIP.breakChance * 100)}%` }[game.enhanceRisk(it)];
+  $('imEnhance').innerHTML = maxed ? 'ตีบวกเต็มแล้ว' : `ตีบวก +${it.plus + 1} · ${Math.round(game.enhanceRate(it) * 100)}%${risk} · <img src="assets/ui/coin.png" alt=""> ${fmt(game.enhanceCost(it), true)}`;
   $('imEnhance').disabled = maxed;
   $('imSalvage').textContent = `ย่อย +${fmt(game.salvageValue(it))} เหรียญ`;
   $('imSalvage').disabled = equipped;
@@ -534,11 +535,17 @@ $('imEquip').addEventListener('click', () => {
   saveState(state); buildEquip(); showItem(openUid);
 });
 $('imEnhance').addEventListener('click', () => {
+  const it = game.item(openUid);
+  if (!it) return;
+  if (game.enhanceRisk(it) === 'break' && !confirm(`ตีบวก +${it.plus + 1} ถ้าพลาดมีโอกาส ${Math.round(EQUIP.breakChance * 100)}% ที่${itemName(it)}จะแตกหายไปเลย ตีต่อไหม?`)) return;
   const r = game.enhance(openUid);
   if (r === 'gold') toast('เหรียญไม่พอ');
   else if (r === 'ok') { toast(`ตีบวกสำเร็จ! +${game.item(openUid).plus}`); flash('#ffe27a'); }
   else if (r === 'fail') toast('ตีบวกไม่สำเร็จ เสียเหรียญไป', 1500);
-  saveState(state); buildEquip(); showItem(openUid); updateHud();
+  else if (r === 'down') { toast(`ตีบวกพลาด! ระดับลดเหลือ +${game.item(openUid).plus}`, 1800); flash('#5a6a8a'); }
+  else if (r === 'broken') { toast('ตีบวกพลาด… ไอเทมแตกแล้ว 💥', 2200); flash('#d2473a'); }
+  saveState(state); buildEquip(); updateHud();
+  if (game.item(openUid)) showItem(openUid); else $('itemModal').hidden = true;
 });
 $('imSalvage').addEventListener('click', () => {
   const g = game.salvage(openUid);

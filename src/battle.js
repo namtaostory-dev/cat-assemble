@@ -407,6 +407,37 @@ export class Battle {
     c.restore();
   }
 
+  // ออร่าตามระดับตีบวกอาวุธ: 1 ขาว, 2 ประกายฟ้า, 3 ไฟ/สายฟ้าสีทอง (วาดในพิกัดของตัวเรา)
+  drawAura(tier) {
+    if (!tier) return;
+    const c = this.ctx, t = performance.now() / 1000;
+    const col = ['', '255,255,255', '110,190,255', '255,200,70'][tier];
+    const r = 48 + tier * 8 + Math.sin(t * 4) * 4;
+    const g = c.createRadialGradient(0, -38, 8, 0, -38, r);
+    g.addColorStop(0, `rgba(${col},${0.45 + tier * 0.12})`);
+    g.addColorStop(0.6, `rgba(${col},${0.18 + tier * 0.06})`);
+    g.addColorStop(1, `rgba(${col},0)`);
+    c.fillStyle = g;
+    c.beginPath(); c.ellipse(0, -38, r * 0.8, r, 0, 0, 7); c.fill();
+    if (tier >= 2) {
+      c.fillStyle = `rgba(${col},.9)`;
+      for (let i = 0; i < 6; i++) {
+        const a = t * 2 + i * Math.PI / 3, rr = 30 + Math.sin(t * 3 + i) * 6;
+        c.beginPath(); c.arc(Math.cos(a) * rr * 1.2, -38 + Math.sin(a) * rr * 1.4, 3.2, 0, 7); c.fill();
+      }
+    }
+    if (tier >= 3) {
+      c.strokeStyle = 'rgba(255,236,140,.95)'; c.lineWidth = 3; c.shadowColor = '#ffb400'; c.shadowBlur = 14;
+      for (let k = 0; k < 3; k++) {
+        let x = (Math.random() - 0.5) * 70, y = -92;
+        c.beginPath(); c.moveTo(x, y);
+        for (let j = 0; j < 4; j++) { x += (Math.random() - 0.5) * 18; y += 18; c.lineTo(x, y); }
+        c.stroke();
+      }
+      c.shadowBlur = 0;
+    }
+  }
+
   drawHero() {
     const c = this.ctx, h = this.hero;
     const f = h.anim > 0 ? HERO[h.anim > 0.12 ? 1 : h.anim > 0.06 ? 2 : 3] : HERO[0];
@@ -417,6 +448,7 @@ export class Battle {
     c.translate(h.x, h.y - bob);
     c.scale(h.face, 1);
     c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(0, bob + 2, 26, 5, 0, 0, 7); c.fill();
+    this.drawAura(this.game.auraTier());
     const look = this.game.outfitLook();   // ชุดที่สวม: ปรับโทนสีตัวเรา
     if (look) c.filter = look.filter;
     // จุดหมุนของภาพ: ลำตัวอยู่ที่ x≈62 จากซ้ายในภาพกว้าง 190

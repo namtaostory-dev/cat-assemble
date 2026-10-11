@@ -204,7 +204,9 @@ export class Game {
   }
   enhanceCost(it) { return Math.ceil(goldOf(it.lv) * 20 * EQUIP.rarity[it.rarity].mul * 1.6 ** it.plus); }
   enhanceRate(it) { return EQUIP.enhanceRate[it.plus] ?? 0; }
-  // คืน 'max' | 'gold' | 'ok' | 'fail'
+  // ถ้าตีพลาดตอนนี้จะเกิดอะไร: 'none' | 'down' | 'break'
+  enhanceRisk(it) { return it.plus >= EQUIP.breakFrom ? 'break' : it.plus >= EQUIP.downFrom ? 'down' : 'none'; }
+  // คืน 'max' | 'gold' | 'ok' | 'fail' | 'down' | 'broken'
   enhance(uid) {
     const it = this.item(uid);
     if (!it) return null;
@@ -212,8 +214,22 @@ export class Game {
     const cost = this.enhanceCost(it);
     if (this.s.gold < cost) return 'gold';
     this.s.gold -= cost;
-    if (Math.random() < this.enhanceRate(it)) { it.plus++; this._gear = null; return 'ok'; }
+    this._gear = null;
+    if (Math.random() < this.enhanceRate(it)) { it.plus++; return 'ok'; }
+    const risk = this.enhanceRisk(it);
+    if (risk === 'break' && Math.random() < EQUIP.breakChance) {
+      for (const [k, u] of Object.entries(this.s.equip)) if (u === uid) delete this.s.equip[k];
+      this.s.items = this.s.items.filter(o => o !== it);
+      return 'broken';
+    }
+    if (risk !== 'none') { it.plus--; return 'down'; }
     return 'fail';
+  }
+  // ระดับออร่าจากอาวุธที่สวม: 0 ไม่มี, 1 ขาว (+1–3), 2 ฟ้า (+4–6), 3 ทอง (+7–10)
+  auraTier() {
+    const w = this.item(this.s.equip.weapon);
+    const p = w ? w.plus : 0;
+    return p >= 7 ? 3 : p >= 4 ? 2 : p >= 1 ? 1 : 0;
   }
 
   // dt เป็นวินาที เรียกทุกเฟรม
@@ -265,7 +281,8 @@ export class Game {
     this.s.pulls++;
     const r = Math.random();
     if (this.s.pity >= GACHA.pity || r < RARITY.SSR.rate) { this.s.pity = 0; return 'SSR'; }
-    return r < RARITY.SSR.rate + RARITY.SR.rate ? 'SR' : 'R';
+    if (r < RARITY.SSR.rate + RARITY.SR.rate) return 'SR';
+    return r < RARITY.SSR.rate + RARITY.SR.rate + RARITY.R.rate ? 'R' : 'C';
   }
   // คืนรายการผลลัพธ์ หรือ null ถ้าเพชรไม่พอ
   pull(count) {
@@ -274,7 +291,7 @@ export class Game {
     const rarities = [];
     for (let i = 0; i < count; i++) rarities.push(this.rollRarity());
     // เปิด 10 ครั้งการันตี SR ขึ้นไปอย่างน้อย 1 ตัว
-    if (count === 10 && rarities.every(r => r === 'R')) rarities[9] = 'SR';
+    if (count === 10 && rarities.every(r => r === 'R' || r === 'C')) rarities[9] = 'SR';
     return rarities.map(rarity => {
       const pool = CATS.filter(c => c.rarity === rarity);
       return this.addCat(pool[Math.floor(Math.random() * pool.length)].id);

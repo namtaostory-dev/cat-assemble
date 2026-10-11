@@ -50,8 +50,9 @@ export const BAL = {
 };
 
 export const RARITY = {
-  R:   { dps: 5,  cost: 50,  rate: 0.75, refund: 10,  color: '#7fb2e6' },
-  SR:  { dps: 15, cost: 150, rate: 0.22, refund: 30,  color: '#b583ff' },
+  C:   { dps: 3,  cost: 30,  rate: 0.55, refund: 5,   color: '#a8b4c4' },
+  R:   { dps: 6,  cost: 60,  rate: 0.30, refund: 10,  color: '#7fb2e6' },
+  SR:  { dps: 15, cost: 150, rate: 0.12, refund: 30,  color: '#b583ff' },
   SSR: { dps: 50, cost: 500, rate: 0.03, refund: 100, color: '#ffc83a' },
 };
 
@@ -65,11 +66,11 @@ export const STARTER = 'volt';
 
 // img = ชื่อไฟล์ภาพใน assets/cats และ assets/skills
 export const CATS = [
-  { id: 'volt',  name: 'โวลต์',   img: 'thunder', rarity: 'R',   color: '#ffd23a' },
-  { id: 'toxin', name: 'ท็อกซิน', img: 'poison',  rarity: 'R',   color: '#7be04a' },
-  { id: 'rock',  name: 'ร็อค',    img: 'earth',   rarity: 'R',   color: '#c08a52' },
-  { id: 'blaze', name: 'บลาซ',    img: 'fire',    rarity: 'SR',  color: '#ff6a2a' },
-  { id: 'frost', name: 'ฟรอสต์',  img: 'ice',     rarity: 'SR',  color: '#5ac8ff' },
+  { id: 'volt',  name: 'โวลต์',   img: 'thunder', rarity: 'C',   color: '#ffd23a' },
+  { id: 'toxin', name: 'ท็อกซิน', img: 'poison',  rarity: 'C',   color: '#7be04a' },
+  { id: 'rock',  name: 'ร็อค',    img: 'earth',   rarity: 'C',   color: '#c08a52' },
+  { id: 'blaze', name: 'บลาซ',    img: 'fire',    rarity: 'R',  color: '#ff6a2a' },
+  { id: 'frost', name: 'ฟรอสต์',  img: 'ice',     rarity: 'R',  color: '#5ac8ff' },
   { id: 'gale',  name: 'เกล',     img: 'wind',    rarity: 'SR',  color: '#4fe3d6' },
   { id: 'lumi',  name: 'ลูมิ',    img: 'light',   rarity: 'SSR', color: '#fff2a0' },
   { id: 'nox',   name: 'น็อกซ์',  img: 'dark',    rarity: 'SSR', color: '#a35cff' },
@@ -150,6 +151,9 @@ export const EQUIP = {
   enhanceMax: 10,
   enhanceRate: [1, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2],  // โอกาสสำเร็จ +0→+1 … +9→+10 (ล้มเหลวเสียแค่เหรียญ)
   enhancePer: 0.1,
+  downFrom: 5,             // ตั้งแต่ +5 ตีพลาดแล้วระดับลด 1 ขั้น
+  breakFrom: 8,            // ตั้งแต่ +8 ตีพลาดมีโอกาสแตก
+  breakChance: 0.3,
   invMax: 60,
   // หน้าตาชุดชั่วคราว: ปรับโทนสีภาพตัวเรา จนกว่าจะมีภาพชุดจริง
   outfits: [
