@@ -162,6 +162,7 @@ function startGame(s) {
   battle.game = game;
   battle.reset();
   battle.updateCam(0, true);
+  setAutoMove(state.autoMove, true);
   onTeamChanged();
   fit();
   updateHud();
@@ -172,10 +173,59 @@ function onTeamChanged() {
 }
 
 // ---------- แตะ / ท้าบอส ----------
+// ฝั่งซ้ายของจอ: กดแล้วลาก = แป้นทิศทาง (แตะสั้นๆ ยังเป็นการฟัน) · ฝั่งขวา: แตะเพื่อฟัน
+const JOY_R = 40;
+let joy = null;
+function setAutoMove(on, silent) {
+  state.autoMove = on;
+  battle.autoMove = on;
+  const b = $('autoMove');
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', String(on));
+  b.textContent = on ? 'AUTO' : 'บังคับเอง';
+  if (!silent) toast(on ? 'เดินออโต้: ตัวเราไล่ตีศัตรูเอง' : 'บังคับเอง: ลากฝั่งซ้ายเพื่อเดิน กดปุ่มขวาเพื่อกระโดด', 2200);
+}
+// แตะแป้นหรือปุ่มกระโดดตอนออโต้เปิดอยู่ = สลับมาบังคับเอง
+function takeControl() { if (state.autoMove) setAutoMove(false); }
 $('battle').addEventListener('pointerdown', e => {
   const p = toScene(e.clientX, e.clientY);
+  if (p.x < W * 0.45 && !joy) {
+    joy = { id: e.pointerId, x: p.x, y: p.y, t: performance.now(), moved: false };
+    try { $('battle').setPointerCapture(e.pointerId); } catch {}
+    return;
+  }
   battle.tap(p.x, p.y);
 });
+$('battle').addEventListener('pointermove', e => {
+  if (!joy || e.pointerId !== joy.id) return;
+  const p = toScene(e.clientX, e.clientY);
+  let dx = p.x - joy.x, dy = p.y - joy.y;
+  const d = Math.hypot(dx, dy);
+  if (!joy.moved && d < 10) return;
+  if (!joy.moved) {
+    joy.moved = true;
+    takeControl();
+    const el = $('joy');
+    el.style.left = joy.x + 'px'; el.style.top = joy.y + 'px';
+    el.hidden = false;
+  }
+  if (d > JOY_R) { dx *= JOY_R / d; dy *= JOY_R / d; }
+  $('joy').style.setProperty('--jx', dx + 'px');
+  $('joy').style.setProperty('--jy', dy + 'px');
+  battle.input.dir = Math.abs(dx) > JOY_R * 0.3 ? Math.sign(dx) : 0;
+  battle.input.down = dy > JOY_R * 0.6;
+});
+function endJoy(e) {
+  if (!joy || e.pointerId !== joy.id) return;
+  if (!joy.moved && performance.now() - joy.t < 300) battle.tap(joy.x, joy.y);
+  joy = null;
+  battle.input.dir = 0; battle.input.down = false;
+  $('joy').hidden = true;
+}
+$('battle').addEventListener('pointerup', endJoy);
+$('battle').addEventListener('pointercancel', endJoy);
+$('jumpBtn').addEventListener('pointerdown', e => { e.preventDefault(); takeControl(); battle.jump(); });
+$('autoMove').addEventListener('click', () => { setAutoMove(!state.autoMove); saveState(state); });
 $('fight').addEventListener('click', () => {
   if (game.challengeBoss()) toast('ท้าบอสอีกครั้ง!');
   else toast(game.bossActive ? 'กำลังสู้บอสอยู่!' : `ล้มศัตรูให้ครบ ${BAL.enemiesPerStage} ตัวก่อน บอสจะออกมาเอง`);

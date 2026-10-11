@@ -11,6 +11,7 @@ const MAP_SCALE = 1.4;
 const ZOOM = 0.7;           // กล้องซูมออก: ตัวละครเล็กลง เห็นแผนที่กว้างขึ้น
 export const WW = Math.round(1024 * MAP_SCALE), WH = Math.round(572 * MAP_SCALE);
 const MAP = img('assets/scenes/forest.webp');
+const BOTTOM_PAD = 150;   // ให้กล้องเลื่อนต่ำกว่าแผนที่ได้ ตัวละครบนพื้นล่างสุดจะไม่จมใต้ปุ่มล่างจอ
 // แท่นวัดจากภาพ (พิกัดในภาพ x1, x2, y ของขอบหญ้า) floor = พื้นที่กระโดดลงทะลุไม่ได้
 const P = (x1, x2, y, floor = false) => ({ x1: x1 * MAP_SCALE, x2: x2 * MAP_SCALE, y: y * MAP_SCALE, ground: floor });
 const PLATFORMS = [
@@ -74,6 +75,8 @@ export class Battle {
     this.loot = [];
     this.cats = [];
     this.spawnT = 0;
+    this.autoMove = true;              // false = ผู้เล่นบังคับเดิน/กระโดดเอง
+    this.input = { dir: 0, down: false };
     this.hits = [];   // ดาเมจสกิลที่รอลงทีละจังหวะ { t, m, k, row }
     this.skfx = [];   // ท่าสกิลที่กำลังวาด
     this.shake = 0;
@@ -182,6 +185,18 @@ export class Battle {
     this.slash(roll, 'tap');
   }
 
+  // ปุ่มกระโดด: บนพื้นกระโดดปกติ กดอีกครั้งกลางอากาศเป็นกระโดดสูง (กระโดดสองชั้น) กดค้างแป้นลงแล้วกระโดด = ลงทะลุแท่น
+  jump() {
+    const h = this.hero, onGround = h.vy === 0 && h.plat;
+    if (onGround) {
+      if (this.input.down && !h.plat.ground) { h.drop = 0.25; h.plat = null; h.vy = 60; return; }
+      h.vy = JUMP_V * 0.85; h.plat = null; h.jumps = 1;
+    } else if ((h.jumps || 0) < 2) {
+      h.vy = JUMP_V * 0.95; h.jumps = 2;
+      this.poofs.push({ x: h.x, y: h.y + 6, r: 22, t: 0 });
+    }
+  }
+
   standingOn(e) { return PLATFORMS.find(p => Math.abs(e.y - p.y) < 1 && e.x >= p.x1 && e.x <= p.x2); }
 
   updateHero(dt) {
@@ -190,7 +205,12 @@ export class Battle {
     h.anim = Math.max(0, h.anim - dt);
     let dir = 0;
     const onGround = h.vy === 0 && h.plat;
-    if (t && onGround) {
+    if (onGround) h.jumps = 0;
+    if (!this.autoMove) {
+      // บังคับเอง: เดินตามแป้น หยุดอยู่ก็หันหาศัตรูที่อยู่ใกล้ให้ฟันอัตโนมัติได้
+      dir = this.input.dir;
+      if (!dir && t && Math.abs(t.y - h.y) < 60 && Math.abs(t.x - h.x) < SLASH_BOX + 60) h.face = Math.sign(t.x - h.x) || h.face;
+    } else if (t && onGround) {
       const sameLevel = Math.abs(t.y - h.y) < 4;
       if (sameLevel) {
         const dx = t.x - h.x;
@@ -240,7 +260,7 @@ export class Battle {
 
     if (h.y > WH + 100) { h.x = 120; h.y = GROUND; h.vy = 0; h.plat = PLATFORMS[0]; }
     // ติดอยู่นานเกินไป: วาร์ปไปใกล้เป้า
-    h.stuck = t && Math.abs(h.x - h.lastX) < 0.5 && !this.monsters.some(m => this.inSlash(m)) ? h.stuck + dt : 0;
+    h.stuck = this.autoMove && t && Math.abs(h.x - h.lastX) < 0.5 && !this.monsters.some(m => this.inSlash(m)) ? h.stuck + dt : 0;
     h.lastX = h.x;
     if (h.stuck > 2.5 && t) {
       this.poofs.push({ x: h.x, y: h.y - 30, r: 30, t: 0 });
@@ -260,7 +280,7 @@ export class Battle {
       return min > max ? (min + max) / 2 : Math.min(max, Math.max(min, want));
     };
     const tx = clamp(h.x - W / 2 / ZOOM, v.l, v.w, WW);
-    const ty = clamp(h.y - H * 0.62 / ZOOM, v.t, v.h, WH);
+    const ty = clamp(h.y - H * 0.58 / ZOOM, v.t, v.h, WH + BOTTOM_PAD);
     const k = snap ? 1 : Math.min(1, dt * 5);
     this.cam.x += (tx - this.cam.x) * k;
     this.cam.y += (ty - this.cam.y) * k;
@@ -436,7 +456,18 @@ export class Battle {
     c.scale(ZOOM, ZOOM);
     c.translate(-this.cam.x, -this.cam.y);
     if (this.shake > 0) c.translate((Math.random() - 0.5) * 14 * this.shake / 0.45, (Math.random() - 0.5) * 10 * this.shake / 0.45);
-    if (MAP.complete) c.drawImage(MAP, 0, 0, WW, WH);
+    if (MAP.complete) {
+      c.drawImage(MAP, 0, 0, WW, WH);
+      // ใต้แผนที่: สะท้อนแถบดินล่างสุดลงไป แล้วไล่มืด ให้ดูเป็นดินใต้พื้น
+      const sh = MAP.naturalHeight * BOTTOM_PAD / WH;
+      c.save();
+      c.translate(0, WH * 2); c.scale(1, -1);
+      c.drawImage(MAP, 0, MAP.naturalHeight - sh, MAP.naturalWidth, sh, 0, WH - BOTTOM_PAD, WW, BOTTOM_PAD);
+      c.restore();
+      const g = c.createLinearGradient(0, WH, 0, WH + BOTTOM_PAD);
+      g.addColorStop(0, 'rgba(18,14,10,.35)'); g.addColorStop(1, 'rgba(18,14,10,.9)');
+      c.fillStyle = g; c.fillRect(0, WH, WW, BOTTOM_PAD + 2);
+    }
 
     const ms = [...this.monsters].sort((a, b) => (b.boss ? 1 : 0) - (a.boss ? 1 : 0));
     for (const m of ms) this.drawMonster(m);
