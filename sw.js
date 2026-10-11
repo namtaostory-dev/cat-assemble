@@ -1,5 +1,5 @@
 // เพิ่มไฟล์ใหม่ในเกมเมื่อไหร่ ให้ใส่ใน SHELL และเปลี่ยนเลขเวอร์ชัน
-const CACHE = 'cat-assemble-v18';
+const CACHE = 'cat-assemble-v19';
 const SHELL = [
   './',
   'index.html',

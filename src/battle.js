@@ -247,18 +247,17 @@ export class Battle {
 
     this.updateHero(dt);
 
-    // แมว: ลอยตามหลังตัวเราเป็นแถว แล้วยิงลูกพลังใส่เป้า
+    // คู่หู: ยืนเรียงตามหลังตัวเรา (ตัวใหญ่เท่าตัวเรา) แล้วยิงลูกพลังใส่เป้า
     const h = this.hero, t = this.target();
     this.cats.forEach((c, i) => {
-      const row = Math.floor(i / 4), col = i % 4;
-      const tx = h.x - h.face * (46 + col * 34), ty = h.y - 8 - row * 46 + Math.sin(performance.now() / 300 + i) * 3;
+      const tx = Math.min(W - 30, Math.max(30, h.x - h.face * (62 + i * 56))), ty = h.y + Math.sin(performance.now() / 300 + i) * 2;
       c.x += (tx - c.x) * Math.min(1, dt * 5);
       c.y += (ty - c.y) * Math.min(1, dt * 5);
       c.charge += dt / BAL.catPeriod;
       const shots = Math.floor(c.charge);
       if (shots > 0 && t) {
         c.charge -= shots;
-        this.shots.push({ x: c.x, y: c.y - 30, to: t, amount: g.catDps(c.id) * BAL.catPeriod * shots, src: 'cat', color: catById(c.id).color });
+        this.shots.push({ x: c.x, y: c.y - 50, to: t, amount: g.catDps(c.id) * BAL.catPeriod * shots, src: 'cat', color: catById(c.id).color });
       } else if (!t) c.charge = Math.min(c.charge, 1);
     });
 
@@ -398,11 +397,11 @@ export class Battle {
   drawCat(cat) {
     const c = this.ctx, im = catImg(cat.id);
     if (!im.complete || !im.naturalHeight) return;
-    const hgt = 46, w = hgt * im.naturalWidth / im.naturalHeight;
+    const hgt = 86, w = hgt * im.naturalWidth / im.naturalHeight;   // สูงเท่าตัวเรา
     c.save();
     c.translate(cat.x, cat.y);
     c.scale(this.hero.face, 1);
-    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(0, 2, w * 0.3, 4, 0, 0, 7); c.fill();
+    c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 2, w * 0.28, 5, 0, 0, 7); c.fill();
     c.drawImage(im, -w / 2, -hgt, w, hgt);
     c.restore();
   }
