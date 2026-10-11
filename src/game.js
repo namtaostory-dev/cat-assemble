@@ -25,11 +25,9 @@ export class Game {
   constructor(state, hooks) {
     this.s = state;
     this.hooks = hooks;
-    this.enemy = null;
+    this.bossActive = false;
     this.bossLeft = 0;
-    this.dotAcc = 0;
     this.tapTokens = BAL.tapMaxPerSec;
-    this.spawn();
   }
 
   // ---------- ค่าที่คำนวณจากสถานะ ----------
@@ -63,53 +61,44 @@ export class Game {
   bossTimeLimit() { return isBigBoss(this.s.stage) ? BAL.bigBossTime : BAL.bossTime; }
   gems() { return this.s.gemsFree + this.s.gemsPaid; }
 
-  // ---------- ศัตรู ----------
-  spawn() {
-    const s = this.s.stage, zone = zoneOf(s);
-    const boss = !this.s.farming && this.s.kills >= BAL.enemiesPerStage;
-    const big = boss && isBigBoss(s);
-    const cut = boss ? Math.min(0.5, 0.1 * this.passive('bossHp')) : 0;
-    const hp = hpOf(s) * (boss ? BAL.bossHpMul * (big ? BAL.bigBossMul : 1) : 1) * (1 - cut);
-    const names = boss ? zone.bosses : zone.enemies;
-    this.enemy = { boss, big, hp, maxHp: hp, name: names[(s + this.s.kills) % names.length], hue: zone.hue };
-    this.bossLeft = boss ? this.bossTimeLimit() : 0;
-    this.hooks.onSpawn?.(this.enemy);
+  // ---------- ศัตรูและบอส (ตัวมอนสเตอร์อยู่ใน battle.js ที่นี่ดูแลตัวเลขและรางวัล) ----------
+  monsterHp() { return hpOf(this.s.stage); }
+  bossHp() {
+    const s = this.s.stage, big = isBigBoss(s);
+    const cut = Math.min(0.5, 0.1 * this.passive('bossHp'));
+    return hpOf(s) * BAL.bossHpMul * (big ? BAL.bigBossMul : 1) * (1 - cut);
   }
+  monsterName(boss) {
+    const zone = zoneOf(this.s.stage), names = boss ? zone.bosses : zone.enemies;
+    return names[(this.s.stage + this.s.kills + Math.floor(Math.random() * 3)) % names.length];
+  }
+  zoneHue() { return zoneOf(this.s.stage).hue; }
+  wantsBoss() { return !this.s.farming && this.s.kills >= BAL.enemiesPerStage; }
+  startBoss() { this.bossActive = true; this.bossLeft = this.bossTimeLimit(); }
 
   challengeBoss() {
     if (!this.s.farming) return false;
     this.s.farming = false;
     this.s.kills = BAL.enemiesPerStage;
-    this.spawn();
     return true;
   }
 
-  // ดาเมจทุกแหล่งผ่านที่นี่
-  damage(amount, source, crit = false) {
-    const e = this.enemy;
-    if (!e || e.hp <= 0) return 0;
-    e.hp -= amount;
-    this.hooks.onHit?.(amount, source, crit);
-    if (e.hp <= 0) this.kill();
-    return amount;
-  }
-
-  // ฟันหนึ่งครั้ง (อัตโนมัติหรือจากการแตะ)
-  slash(source) {
+  // ฟันหนึ่งครั้ง: คืน { amount, crit }
+  rollSlash() {
     const crit = Math.random() < this.critChance();
-    return this.damage(this.slashDamage() * (crit ? this.critMul() : 1), source, crit);
+    return { amount: this.slashDamage() * (crit ? this.critMul() : 1), crit };
   }
-  // แตะ: นับได้ไม่เกิน tapMaxPerSec ครั้งต่อวินาที คืน false ถ้าเกิน
+  // แตะ: นับได้ไม่เกิน tapMaxPerSec ครั้งต่อวินาที คืน null ถ้าเกิน
   tap() {
-    if (this.tapTokens < 1) return false;
+    if (this.tapTokens < 1) return null;
     this.tapTokens--;
     this.s.stats.taps++;
-    this.slash('tap');
-    return true;
+    return this.rollSlash();
   }
 
-  kill() {
-    const e = this.enemy, s = this.s, now = Date.now();
+  // มอนสเตอร์ตาย: ให้รางวัล นับความคืบหน้า และขึ้นด่านถ้าเป็นบอส
+  killed(e) {
+    const s = this.s, now = Date.now();
     s.stats.kills++;
     let gold = goldOf(s.stage) * this.goldMul(now), gems = 0;
     if (e.boss) {
@@ -120,35 +109,26 @@ export class Game {
       s.stage++;
       s.maxStage = Math.max(s.maxStage, s.stage);
       s.kills = 0;
+      this.bossActive = false;
     } else if (!s.farming) {
-      s.kills++;
+      s.kills = Math.min(BAL.enemiesPerStage, s.kills + 1);
     }
     s.gold += gold;
     s.gemsFree += gems;
     this.hooks.onKill?.(e, gold, gems);
     if (e.boss) this.hooks.onStage?.(s.stage);
-    this.spawn();
   }
 
   // dt เป็นวินาที เรียกทุกเฟรม
   tick(dt) {
-    const e = this.enemy, now = Date.now();
     this.tapTokens = Math.min(BAL.tapMaxPerSec, this.tapTokens + dt * BAL.tapMaxPerSec);
-    if (e.boss && !this.active('frost', now)) {
+    if (this.bossActive && !this.active('frost')) {
       this.bossLeft -= dt;
       if (this.bossLeft <= 0) {
+        this.bossActive = false;
         this.s.farming = true;
         this.hooks.onBossFail?.();
-        this.spawn();
-        return;
       }
-    }
-    // สกิลหมอกพิษ รวบดาเมจเป็นก้อนทุก 0.5 วิ
-    if (this.active('toxin', now)) this.dotAcc += 0.005 * this.power('toxin') * e.maxHp * dt;
-    if (this.dotAcc > 0 && (this.dotAcc >= e.hp || Math.floor(now / 500) !== this.lastDot)) {
-      this.lastDot = Math.floor(now / 500);
-      const d = this.dotAcc; this.dotAcc = 0;
-      this.damage(d, 'dot');
     }
   }
 
@@ -272,10 +252,11 @@ export class Game {
     const dur = id === 'frost' ? sk.dur * p : sk.dur;
     if (dur) this.s.skillUntil[id] = now + dur * 1000;
     this.hooks.onSkill?.(id);
-    if (id === 'blaze') this.damage(this.slashDamage() * 60 * p, 'skill');
-    if (id === 'bombardier') this.damage(this.totalDps() * 15 * p, 'skill');
-    if (id === 'empress') this.damage(this.totalDps() * 30 * p, 'skill');
-    if (id === 'saboteur') this.damage(this.slashDamage() * 40 * p * this.critMul(), 'skill', true);
+    // สกิลดาเมจ: aoe = โดนมอนสเตอร์ทุกตัวในจอ, single = ตัวที่ตัวเราเล็งอยู่
+    if (id === 'blaze') this.hooks.onSkillDamage?.(id, this.slashDamage() * 60 * p, 'aoe', false);
+    if (id === 'bombardier') this.hooks.onSkillDamage?.(id, this.totalDps() * 15 * p, 'aoe', false);
+    if (id === 'empress') this.hooks.onSkillDamage?.(id, this.totalDps() * 30 * p, 'aoe', false);
+    if (id === 'saboteur') this.hooks.onSkillDamage?.(id, this.slashDamage() * 40 * p * this.critMul(), 'single', true);
     return true;
   }
 

@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Cat Assemble</title>
-<meta name="description" content="เกมแตะ + idle ทีมแมว 8 ธาตุ">
+<meta name="description" content="เกม idle แนวนอน ทีมแมวช่วยกันล่ามอนสเตอร์">
 <meta name="theme-color" content="#5cc4f2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -23,47 +23,38 @@
 <body>
 <div id="game">
   <div class="scene"></div>
-  <div class="dirt"></div>
+  <canvas id="stage" class="stage"></canvas>
+  <div id="battle" class="battle" aria-label="แตะเพื่อโจมตี"></div>
+  <div class="fx" id="fx"></div>
 
-  <div class="top">
+  <!-- ซ้ายบน: โปรไฟล์และเงิน -->
+  <div class="hud-l">
     <img class="avatar" src="assets/ui/avatar.png" alt="">
     <div class="who"><div class="name stroke">CatMaster</div><div class="lv"><span>ดาบ Lv. <b id="heroLv">1</b></span></div></div>
+  </div>
+  <div class="hud-money">
     <div class="pill"><img src="assets/ui/coin.png" alt="เหรียญ"><span id="gold">0</span><button class="plus" id="addGold" aria-label="รับเหรียญฟรี (ทดสอบ)" hidden>+</button></div>
     <div class="pill"><img src="assets/ui/gem.png" alt="เพชร"><span id="gems">0</span><button class="plus" id="addGems" aria-label="รับเพชรฟรี (ทดสอบ)" hidden>+</button></div>
   </div>
 
-  <div class="stages">
-    <div class="st"><span id="s0"></span></div><div class="dots">•••</div>
-    <div class="st cur"><span id="s1">1</span></div><div class="dots">•••</div>
-    <div class="st"><span id="s2">2</span></div>
+  <!-- กลางบน: ด่าน + ความคืบหน้า หรือหลอดเลือดบอส -->
+  <div class="hud-c">
+    <div class="stagepill" id="stagePill">ด่าน <b id="stageNo">1</b> <span id="wave"></span></div>
+    <div class="bossbar" id="bossbar"><i id="hpbar"></i><div><span id="ename"></span><span id="hptxt"></span></div></div>
   </div>
 
-  <div class="bossbar" id="bossbar"><i id="hpbar"></i><div><span id="ename"></span><span id="hptxt"></span></div></div>
-  <div class="info"><span id="dps" class="stroke">DPS 0</span><span id="wave" class="stroke"></span></div>
-
-  <div id="battle" class="battle" aria-label="แตะเพื่อโจมตี"></div>
-
-  <!-- หน้าผา 2 ฝั่ง ฝั่งละ 4 ชั้น -->
-  <div class="ledge l" style="top:328px"></div><div class="ledge r" style="top:328px"></div>
-  <div class="ledge l" style="top:418px"></div><div class="ledge r" style="top:418px"></div>
-  <div class="ledge l" style="top:508px"></div><div class="ledge r" style="top:508px"></div>
-  <div class="ledge l" style="top:598px"></div><div class="ledge r" style="top:598px"></div>
-  <div id="cats"></div>
-
-  <div id="enemy" aria-hidden="true"></div>
-  <img class="hero" id="hero" src="assets/hero/slash1.png" alt="">
-  <div class="herobar" id="heroBar"><i></i></div>
-
-  <div class="skills" id="skills"></div>
-
-  <nav class="nav">
+  <!-- ขวาบน: เมนู -->
+  <nav class="menu">
     <button class="tile" id="openHeroes"><span class="ico"><img src="assets/ui/avatar.png" alt=""></span><span class="lbl">ทีมแมว</span><i class="badge" id="heroBadge"></i></button>
     <button class="tile" id="openGacha"><span class="ico"><img src="assets/ui/gem.png" alt="" class="gemico"></span><span class="lbl">กาชา</span><i class="badge" id="gachaBadge"></i></button>
-    <button class="fight" id="fight" aria-label="Fight"><img src="assets/ui/btn-fight.png" alt=""></button>
     <button class="tile" id="openSettings"><span class="ico"><img src="assets/ui/ico-setting.png" alt=""></span><span class="lbl">ตั้งค่า</span></button>
   </nav>
 
-  <div class="fx" id="fx"></div>
+  <!-- ซ้ายล่าง: DPS + ปุ่มท้าบอส / ขวาล่าง: สกิลของแมวในทีม -->
+  <div class="hud-dps stroke" id="dps">DPS 0</div>
+  <button class="fight" id="fight" aria-label="Fight"><img src="assets/ui/btn-fight.png" alt=""></button>
+  <div class="skills" id="skills"></div>
+
   <div class="toast" id="toast"></div>
 
   <!-- แผ่น Heroes -->
@@ -137,7 +128,7 @@
         <p>ลบความคืบหน้าทั้งหมดในเครื่องนี้ ย้อนกลับไม่ได้</p>
         <button class="btn danger" id="resetBtn">ลบเซฟและเริ่มใหม่</button>
       </div>
-      <p class="ver">Cat Assemble · ระยะ 1</p>
+      <p class="ver">Cat Assemble · แนวนอน</p>
     </div>
   </section>
 
@@ -154,6 +145,7 @@
     </div>
   </div>
 </div>
+<div class="rotate" id="rotate"><div><div class="phone"></div><p>หมุนมือถือเป็นแนวนอน<small>Cat Assemble เล่นแบบแนวนอน</small></p></div></div>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
