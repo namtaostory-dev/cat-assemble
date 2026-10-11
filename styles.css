@@ -290,3 +290,52 @@ button { font:inherit; color:inherit; }
 .bcat.C { border-color:#3a4562; }
 .gc.C { background:#ececec; border-color:#a8b4c4; }
 .gshow.c .gtitle { color:#cfe6ff; -webkit-text-stroke-color:#1d2a44; font-size:34px; }
+
+/* ================= หน้าตาตามภาพอ้างอิง ================= */
+/* ซ้ายบน */
+.hud-l { left:8px; top:6px; gap:8px; background:rgba(20,28,46,.82); border:2px solid #3b4d74; border-radius:14px; padding:4px 12px 5px 4px; }
+.hud-l .avatar { width:44px; height:44px; }
+.who .name { font-size:15px; font-weight:600; -webkit-text-stroke:0; }
+.lvline { font-size:12px; color:#cfd8ec; margin-top:1px; }
+.lvline b { font-weight:600; color:#fff; }
+.expbar { width:104px; height:5px; margin-top:3px; }
+.hud-dps { left:12px; top:64px; bottom:auto; font-size:13px; font-weight:500; background:rgba(20,28,46,.82); border:2px solid #3b4d74; border-radius:12px; padding:2px 12px; }
+.hud-dps b { font-weight:600; color:#9fe38a; }
+/* กลางบน */
+.hud-c { width:300px; margin-left:-150px; top:4px; }
+.stageline { font-size:15px; font-weight:600; margin-bottom:4px; white-space:nowrap; }
+.stageline .sep { margin:0 8px; opacity:.7; }
+#wave { color:#ffe27a; }
+#wave.hot { color:#ffb3a0; }
+.banner-b { position:relative; height:40px; background:linear-gradient(#4a5160, #2b303c); border:3px solid #1a1e27; border-radius:9px; box-shadow:inset 0 2px 0 #6a7282, 0 3px 0 rgba(0,0,0,.35); padding:2px 8px 0 36px; text-align:left; }
+.bicon { position:absolute; left:5px; top:4px; width:26px; height:26px; border-radius:6px; background:#7a2a1a; display:grid; place-items:center; font-size:16px; }
+.bname { display:block; font-size:13px; font-weight:600; line-height:17px; text-align:center; margin-left:-28px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bhp { position:relative; height:12px; margin:1px 2px 0 -26px; background:#120d10; border-radius:4px; overflow:hidden; }
+.bhp i { position:absolute; inset:0 auto 0 0; width:100%; background:linear-gradient(#5fd05a,#3c9a2e); transition:width .1s; }
+.banner-b.boss .bhp i { background:linear-gradient(#ff5a45,#c0281a); }
+.bhp span { position:relative; display:block; font-size:9.5px; line-height:12px; text-align:center; font-weight:600; -webkit-text-stroke:2px #120d10; paint-order:stroke fill; }
+/* ขวาบน */
+.hud-money { left:auto; right:8px; top:8px; flex-direction:row; gap:8px; }
+.hud-money .pill { min-width:104px; height:28px; border:2px solid #3b4d74; background:rgba(20,28,46,.85); }
+/* ซ้ายล่าง */
+.menu { left:8px; right:auto; top:auto; bottom:6px; gap:6px; }
+.tile { width:58px; }
+.tile .ico { width:52px; height:52px; border-radius:14px; background:linear-gradient(#34466e, #22304f); border:3px solid #10182b; box-shadow:inset 0 2px 0 #4c628f, 0 3px 0 #0c1324; }
+.tile .lbl { font-size:12px; margin-top:-2px; }
+/* กลางล่าง: ปุ่ม FIGHT ทรงหิน */
+.fight { left:50%; bottom:8px; width:176px; height:52px; margin-left:-88px; display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(#7a8090, #4c5160); border:3px solid #1a1e27; border-radius:14px; box-shadow:inset 0 3px 0 #a0a6b4, 0 4px 0 #11141b; font-family:'Lilita One', sans-serif; font-size:26px; color:#ffe9a8; -webkit-text-stroke:5px #2a1a08; paint-order:stroke fill; letter-spacing:1px; }
+.fight .fx-ico { font-size:22px; -webkit-text-stroke:0; }
+.fight:active { transform:translateY(2px); box-shadow:inset 0 3px 0 #a0a6b4, 0 2px 0 #11141b; }
+.fight.pulse { animation:pulse 1s infinite; }
+/* ขวาล่าง: สกิล */
+.skillbox { position:absolute; right:8px; bottom:8px; display:flex; align-items:center; gap:8px; z-index:6; }
+.sklabel { width:46px; height:46px; border-radius:12px; background:linear-gradient(#34466e, #22304f); border:3px solid #10182b; display:grid; place-items:center; font-size:11.5px; font-weight:600; }
+.skills { position:static; display:flex; gap:8px; padding:0; background:none; border:0; grid-template-columns:none; }
+.sk { width:50px; height:50px; border:3px solid #10182b; box-shadow:0 3px 0 #0c1324; }
+.sk .t { left:0; right:0; top:50%; bottom:auto; transform:translateY(-50%); font-size:12px; font-weight:600; color:#fff; text-align:center; -webkit-text-stroke:3px #0c1324; paint-order:stroke fill; }
+.sk.lock { font-size:11px; }
+/* CRIT และ COMBO */
+.dmg .crittag { position:absolute; left:-30px; top:-14px; font-size:15px; color:#ffe27a; -webkit-text-stroke:4px #5a2a00; paint-order:stroke fill; background:none; }
+.combo { position:absolute; font-family:'Lilita One', sans-serif; font-size:20px; color:#fff; -webkit-text-stroke:5px #1d2a44; paint-order:stroke fill; transform:translateX(-50%); animation:combo .9s ease-out forwards; pointer-events:none; white-space:nowrap; }
+.combo b { color:#ffe27a; font-size:26px; font-weight:400; }
+@keyframes combo { 0% { transform:translateX(-50%) scale(1.5); opacity:0; } 15% { transform:translateX(-50%) scale(1); opacity:1; } 70% { opacity:1; } 100% { opacity:0; } }

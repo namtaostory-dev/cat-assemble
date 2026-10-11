@@ -27,34 +27,42 @@
   <div id="battle" class="battle" aria-label="แตะเพื่อโจมตี"></div>
   <div class="fx" id="fx"></div>
 
-  <!-- ซ้ายบน: โปรไฟล์และเงิน -->
+  <!-- ซ้ายบน: โปรไฟล์ + DPS -->
   <div class="hud-l">
     <img class="avatar" src="assets/ui/avatar.png" alt="">
-    <div class="who"><div class="name stroke">CatMaster</div><div class="lv"><span>Lv. <b id="heroLv">1</b></span></div><div class="expbar"><i id="expBar"></i></div></div>
+    <div class="who"><div class="name">CatMaster</div><div class="lvline">Lv.<b id="heroLv">1</b></div><div class="expbar"><i id="expBar"></i></div></div>
   </div>
+  <div class="hud-dps">DPS <b id="dps">0</b>/s</div>
+
+  <!-- กลางบน: ด่าน + ป้ายศัตรู/บอส -->
+  <div class="hud-c">
+    <div class="stageline stroke" id="stagePill">ด่าน <span id="stageNo">1</span>-<span id="waveNo">1</span><span class="sep">|</span><span id="wave"></span></div>
+    <div class="banner-b" id="bossbar">
+      <span class="bicon" id="bicon">🐶</span>
+      <span class="bname" id="ename"></span>
+      <div class="bhp"><i id="hpbar"></i><span id="hptxt"></span></div>
+    </div>
+  </div>
+
+  <!-- ขวาบน: เงิน -->
   <div class="hud-money">
     <div class="pill"><img src="assets/ui/coin.png" alt="เหรียญ"><span id="gold">0</span><button class="plus" id="addGold" aria-label="รับเหรียญฟรี (ทดสอบ)" hidden>+</button></div>
     <div class="pill"><img src="assets/ui/gem.png" alt="เพชร"><span id="gems">0</span><button class="plus" id="addGems" aria-label="รับเพชรฟรี (ทดสอบ)" hidden>+</button></div>
   </div>
 
-  <!-- กลางบน: ด่าน + ความคืบหน้า หรือหลอดเลือดบอส -->
-  <div class="hud-c">
-    <div class="stagepill" id="stagePill">ด่าน <b id="stageNo">1</b> <span id="wave"></span></div>
-    <div class="bossbar" id="bossbar"><i id="hpbar"></i><div><span id="ename"></span><span id="hptxt"></span></div></div>
-  </div>
-
-  <!-- ขวาบน: เมนู -->
+  <!-- ซ้ายล่าง: เมนู -->
   <nav class="menu">
-    <button class="tile" id="openEquip"><span class="ico"><img src="assets/hero/slash1.png" alt="" class="heroico"></span><span class="lbl">ตัวเรา</span><i class="badge" id="equipBadge"></i></button>
+    <button class="tile" id="openEquip"><span class="ico"><img src="assets/hero/slash1.png" alt="" class="heroico"></span><span class="lbl">ตีบวก</span><i class="badge" id="equipBadge"></i></button>
     <button class="tile" id="openHeroes"><span class="ico"><img src="assets/ui/avatar.png" alt=""></span><span class="lbl">คู่หู</span><i class="badge" id="heroBadge"></i></button>
     <button class="tile" id="openGacha"><span class="ico"><img src="assets/ui/gem.png" alt="" class="gemico"></span><span class="lbl">กาชา</span><i class="badge" id="gachaBadge"></i></button>
     <button class="tile" id="openSettings"><span class="ico"><img src="assets/ui/ico-setting.png" alt=""></span><span class="lbl">ตั้งค่า</span></button>
   </nav>
 
-  <!-- ซ้ายล่าง: DPS + ปุ่มท้าบอส / ขวาล่าง: สกิลของแมวในทีม -->
-  <div class="hud-dps stroke" id="dps">DPS 0</div>
-  <button class="fight" id="fight" aria-label="Fight"><img src="assets/ui/btn-fight.png" alt=""></button>
-  <div class="skills" id="skills"></div>
+  <!-- กลางล่าง: ปุ่มท้าบอส -->
+  <button class="fight" id="fight" aria-label="Fight"><span class="fx-ico">⚔️</span>FIGHT</button>
+
+  <!-- ขวาล่าง: สกิลคู่หู -->
+  <div class="skillbox"><span class="sklabel">Skills</span><div class="skills" id="skills"></div></div>
 
   <div class="toast" id="toast"></div>
 

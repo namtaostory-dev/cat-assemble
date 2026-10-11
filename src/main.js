@@ -42,8 +42,8 @@ function addFx(el, ms) {
   setTimeout(() => { el.remove(); fxCount--; }, ms);
   return true;
 }
-// ตัวเลขเต็มจนถึง 9,999,999 เกินนั้นใช้หน่วยย่อ
-const fmtDmg = n => n < 1e7 ? String(Math.floor(n)) : fmt(n);
+// ตัวเลขเต็มมีคอมม่าจนถึง 999,999,999 เกินนั้นใช้หน่วยย่อ
+const fmtDmg = n => n < 1e9 ? Math.floor(n).toLocaleString('en-US') : fmt(n);
 // ตีรัวๆ ตัวเลขจะซ้อนขึ้นไปเป็นกองเหนือหัวมอนสเตอร์ตัวนั้น แยกตามแหล่งดาเมจ
 const stacks = new Map();
 function stackRow(key) {
@@ -56,17 +56,32 @@ function stackRow(key) {
 function popText(text, x, y, cls) {
   const d = document.createElement('div');
   d.className = 'dmg ' + (cls || '');
-  d.innerHTML = '<span class="o"></span><span class="f"></span>';
-  d.firstChild.textContent = d.lastChild.textContent = text;
+  d.innerHTML = '<span class="o"></span><span class="f"></span>' + (cls === 'crit' ? '<span class="crittag">CRIT</span>' : '');
+  d.firstChild.textContent = d.children[1].textContent = text;
   d.style.left = x + 'px';
   d.style.top = y + 'px';
   addFx(d, 900);
 }
+// COMBO: ตัวเราฟันต่อเนื่องภายใน 1.2 วิ นับเพิ่มเรื่อยๆ
+let combo = 0, comboT = 0, comboEl = null;
+function bumpCombo(x, y) {
+  const now = performance.now();
+  combo = now - comboT < 1200 ? combo + 1 : 1;
+  comboT = now;
+  if (combo < 2) return;
+  if (comboEl) comboEl.remove();
+  comboEl = document.createElement('div');
+  comboEl.className = 'combo';
+  comboEl.innerHTML = `COMBO <b>${combo}</b>`;
+  comboEl.style.left = x + 'px'; comboEl.style.top = y + 'px';
+  fx.appendChild(comboEl);
+}
 function popOn(m, amount, cls, key) {
   const off = { hero: -12, cat: 26, dot: 6 }[key] || 0;
   const row = stackRow(m.id + key);
-  const y = Math.max(40, m.y - m.h - 30 - row * (cls === 'crit' ? 30 : 25));
+  const y = Math.max(46, m.y - m.h - 30 - row * (cls === 'crit' ? 30 : 25));
   popText(fmtDmg(amount), m.x + off + (Math.random() * 8 - 4), y, cls);
+  if (key === 'hero') bumpCombo(m.x + 70, Math.max(46, m.y - m.h - 10));
 }
 function boomFx(x, y, color) {
   const b = document.createElement('div');
@@ -119,8 +134,8 @@ let state = loadState() || newState();
 let game, battle;
 const ui = {
   pop: popOn, slashFx, tapFx, boomFx, flash,
-  coinTo: { x: 24, y: 72 },   // ตำแหน่งไอคอนเหรียญบนจอ เหรียญจะบินเข้าตรงนี้
-  bagTo: { x: 560, y: 30 },   // ปุ่ม "ตัวเรา" ไอเทมที่ดรอปจะบินเข้าตรงนี้
+  coinTo: { x: 620, y: 22 },  // ไอคอนเหรียญมุมขวาบน เหรียญจะบินเข้าตรงนี้
+  bagTo: { x: 37, y: 352 },   // ปุ่ม "ตีบวก" ซ้ายล่าง ไอเทมที่ดรอปจะบินเข้าตรงนี้
 };
 function startGame(s) {
   state = s;
@@ -217,7 +232,7 @@ function updateSkills() {
     el.b.classList.toggle('on', st.activeLeft > 0);
     el.b.classList.toggle('ready', st.ready);
     el.ov.style.setProperty('--p', (st.frac * 100) + '%');
-    el.t.textContent = st.activeLeft > 0 ? Math.ceil(st.activeLeft) + 'วิ' : st.ready ? '' : shortTime(st.left);
+    el.t.textContent = st.activeLeft > 0 ? st.activeLeft.toFixed(1) + 's' : st.ready ? '' : st.left >= 60 ? Math.ceil(st.left / 60) + 'm' : st.left.toFixed(1) + 's';
   }
 }
 
@@ -234,21 +249,25 @@ function updateHud() {
   const wave = $('wave'), bar = $('bossbar');
   if (boss) {
     bar.classList.add('boss');
-    $('ename').textContent = (boss.big ? '👑 ' : '') + boss.name;
-    $('hptxt').textContent = fmt(Math.max(0, boss.hp)) + ' HP';
+    $('waveNo').textContent = BAL.enemiesPerStage;
+    $('bicon').textContent = boss.big ? '👑' : '👹';
+    $('ename').textContent = boss.name + ' (Boss)';
+    $('hptxt').textContent = fmt(Math.max(0, boss.hp)) + ' / ' + fmt(boss.max);
     $('hpbar').style.width = Math.max(0, boss.hp / boss.max * 100) + '%';
-    wave.textContent = (game.active('frost') ? '❄ ' : '⏱ ') + Math.max(0, game.bossLeft).toFixed(1) + ' วิ';
+    wave.textContent = (game.active('frost') ? '❄ ' : '⏱ ') + Math.max(0, game.bossLeft).toFixed(1) + 's';
     wave.classList.toggle('hot', game.bossLeft < 10);
   } else {
     bar.classList.remove('boss');
     const k = s.farming ? BAL.enemiesPerStage : s.kills;
-    $('ename').textContent = s.farming ? 'ฟาร์มเหรียญ · กด FIGHT เพื่อท้าบอส' : 'ล้มศัตรูเพื่อเรียกบอส';
-    $('hptxt').textContent = s.farming ? '' : `${k}/${BAL.enemiesPerStage}`;
+    $('waveNo').textContent = Math.min(BAL.enemiesPerStage, k + 1);
+    $('bicon').textContent = '🐶';
+    $('ename').textContent = s.farming ? 'ฟาร์มเหรียญ · กด FIGHT ท้าบอส' : 'ล้มศัตรูเพื่อเรียกบอส';
+    $('hptxt').textContent = `${k}/${BAL.enemiesPerStage}`;
     $('hpbar').style.width = (k / BAL.enemiesPerStage * 100) + '%';
-    wave.textContent = '';
+    wave.textContent = s.farming ? 'Farming' : isBigBoss(s.stage) ? 'Big Boss Stage' : 'Boss Stage';
     wave.classList.remove('hot');
   }
-  $('dps').textContent = 'DPS ' + fmt(game.totalDps() + game.heroDps());
+  $('dps').textContent = fmt(game.totalDps() + game.heroDps());
   $('fight').classList.toggle('pulse', s.farming);
   $('heroBadge').classList.toggle('on', canUpgradeSomething());
   $('gachaBadge').classList.toggle('on', game.gems() >= GACHA.cost1);

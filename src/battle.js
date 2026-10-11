@@ -1,7 +1,7 @@
 // ฉากต่อสู้แนวนอน วาดบน canvas: แท่นหลายชั้น ตัวเราเดิน/กระโดดไล่ตีมอนสเตอร์ แมวลอยตามและยิงช่วย
 // พิกัดทั้งหมดเป็นหน่วยฉาก 844×390 (canvas ขยายตามจอเอง)
 import { BAL } from './config.js';
-import { catById } from './game.js';
+import { catById, itemName } from './game.js';
 
 export const W = 844, H = 390;
 const GROUND = 300;   // พื้นอยู่เหนือแถบปุ่มด้านล่าง มอนสเตอร์บนพื้นจึงไม่โดนบัง
@@ -322,6 +322,7 @@ export class Battle {
     c.clearRect(0, 0, W, H);
     c.imageSmoothingEnabled = true;
 
+    this.drawGround();
     for (const p of PLATFORMS) if (!p.ground) this.drawPlatform(p);
 
     const ms = [...this.monsters].sort((a, b) => (b.boss ? 1 : 0) - (a.boss ? 1 : 0));
@@ -355,19 +356,34 @@ export class Battle {
     }
   }
 
+  // แท่นหินก่อ: ก้อนหินเรียง ตะไคร่ด้านบน เถาวัลย์ห้อย
   drawPlatform(p) {
-    const c = this.ctx, w = p.x2 - p.x1;
+    const c = this.ctx, w = p.x2 - p.x1, top = p.y - 2, hgt = 26;
     c.save();
-    c.fillStyle = 'rgba(0,0,0,.18)';
-    c.beginPath(); c.ellipse(p.x1 + w / 2, p.y + 40, w * 0.42, 8, 0, 0, 7); c.fill();
-    const g = c.createLinearGradient(0, p.y, 0, p.y + 34);
-    g.addColorStop(0, '#9a8a74'); g.addColorStop(1, '#5a4c40');
-    c.fillStyle = g;
-    c.beginPath();
-    c.moveTo(p.x1, p.y + 4); c.lineTo(p.x2, p.y + 4); c.lineTo(p.x2 - 16, p.y + 22); c.lineTo(p.x1 + w * 0.6, p.y + 36);
-    c.lineTo(p.x1 + w * 0.3, p.y + 30); c.lineTo(p.x1 + 14, p.y + 20); c.closePath(); c.fill();
-    c.fillStyle = '#7fb04a'; c.beginPath(); c.roundRect(p.x1 - 4, p.y - 2, w + 8, 10, 5); c.fill();
-    c.fillStyle = '#5c8a32'; c.fillRect(p.x1, p.y + 5, w, 3);
+    c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(p.x1 + w / 2, p.y + 44, w * 0.42, 7, 0, 0, 7); c.fill();
+    c.fillStyle = '#8c8674'; c.fillRect(p.x1, top, w, hgt);
+    c.strokeStyle = '#5e5a4c'; c.lineWidth = 2;
+    for (let r = 0; r < 2; r++) for (let x = p.x1 + (r ? 18 : 0); x < p.x2; x += 36) {
+      c.strokeRect(x + 1, top + r * 13 + 1, Math.min(36, p.x2 - x) - 2, 12);
+    }
+    c.fillStyle = '#6a6452'; c.fillRect(p.x1, top + hgt - 4, w, 4);
+    c.fillStyle = '#6fa043'; c.beginPath(); c.roundRect(p.x1 - 3, top - 4, w + 6, 8, 4); c.fill();
+    c.fillStyle = '#8cc25a'; for (let x = p.x1; x < p.x2; x += 14) c.fillRect(x, top - 6, 6, 4);
+    c.strokeStyle = '#4f8a2e'; c.lineWidth = 2;
+    for (let x = p.x1 + 20; x < p.x2 - 10; x += 47) {
+      const len = 14 + ((x * 7) % 22);
+      c.beginPath(); c.moveTo(x, top + hgt); c.quadraticCurveTo(x + 5, top + hgt + len / 2, x - 2, top + hgt + len); c.stroke();
+    }
+    c.restore();
+  }
+  drawGround() {
+    const c = this.ctx, y = GROUND;
+    c.save();
+    c.fillStyle = '#a49a7e'; c.fillRect(0, y, W, 18);
+    c.strokeStyle = '#6e6652'; c.lineWidth = 2;
+    for (let x = 0; x < W; x += 40) c.strokeRect(x + 1, y + 1, 38, 16);
+    c.fillStyle = '#6fa043'; c.fillRect(0, y - 3, W, 5);
+    c.fillStyle = '#8cc25a'; for (let x = 4; x < W; x += 22) c.fillRect(x, y - 6, 8, 4);
     c.restore();
   }
 
@@ -452,6 +468,22 @@ export class Battle {
     if (look) c.filter = look.filter;
     // จุดหมุนของภาพ: ลำตัวอยู่ที่ x≈62 จากซ้ายในภาพกว้าง 190
     c.drawImage(f, -62 * w / 190, -hh + 4, w, hh);
+    c.restore();
+    this.drawNameplate(h);
+  }
+  // ป้ายชื่อใต้ตัวเรา: ชื่อ + อาวุธที่สวม
+  drawNameplate(h) {
+    const c = this.ctx, wpn = this.game.item(this.game.s.equip.weapon);
+    const lines = [['Meowstral, The Titan Saber', '#ffe27a']];
+    if (wpn) lines.push([`+${wpn.plus} ${itemName(wpn)}`, '#fff']);
+    c.save();
+    c.font = '600 10.5px Mitr, sans-serif';
+    c.textAlign = 'center';
+    lines.forEach(([txt, col], i) => {
+      const y = h.y + 15 + i * 14, tw = c.measureText(txt).width + 12;
+      c.fillStyle = 'rgba(12,19,36,.72)'; c.beginPath(); c.roundRect(h.x - tw / 2, y - 10, tw, 13, 4); c.fill();
+      c.fillStyle = col; c.fillText(txt, h.x, y);
+    });
     c.restore();
   }
 }
