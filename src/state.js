@@ -21,6 +21,7 @@ export function newState() {
     autoSkill: true,   // ร่ายสกิลเองเมื่อคูลดาวน์หมด
     autoMove: true,    // ตัวเราเดิน/กระโดดไล่ศัตรูเอง (ปิด = บังคับด้วยแป้นและปุ่มกระโดด)
     potions: {},       // id ยา → Date.now() ที่ยาหมดฤทธิ์
+    sound: { sfx: true, music: true, vol: 0.7 },
     lastSeen: Date.now(),
     stats: { taps: 0, kills: 0, bosses: 0 },
     level: 1,
@@ -65,6 +66,7 @@ function migrate(data) {
     skillUntil: timeMap(d.skillUntil),
     autoSkill: d.autoSkill !== false,
     autoMove: d.autoMove !== false,
+    sound: { sfx: obj(d.sound).sfx !== false, music: obj(d.sound).music !== false, vol: Math.min(1, num(obj(d.sound).vol, 0.7)) },
     potions: Object.fromEntries(Object.keys(POTIONS).filter(k => typeof obj(d.potions)[k] === 'number' && isFinite(d.potions[k])).map(k => [k, Math.min(d.potions[k], Date.now() + POTION_MAX_MIN * 60000)])),
     lastSeen: num(d.lastSeen, Date.now()),
     stats: { taps: int(st.taps, 0), kills: int(st.kills, 0), bosses: int(st.bosses, 0) },

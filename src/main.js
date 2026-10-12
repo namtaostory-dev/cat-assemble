@@ -3,6 +3,7 @@ import { fmt, fmtTime } from './format.js';
 import { newState, loadState, saveState, clearSave, exportSave, importSave } from './state.js';
 import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower, itemValue, itemName, expNeed, slotsAtLevel } from './game.js';
 import { Battle, W, H } from './battle.js';
+import { sfx, setSound, unlock, pause, setTrack } from './audio.js';
 
 const $ = id => document.getElementById(id);
 const gameEl = $('game'), fx = $('fx');
@@ -140,6 +141,7 @@ function startGame(s) {
     },
     onLevel(lv, newSlot) {
       lvupFx(lv, newSlot);
+      sfx('levelup');
       const k = game.skillList().find(x => x.lv > lv - 1 && x.lv <= lv);
       if (k) toast(`ปลดสกิลใหม่: ${k.name}!`, 2000);
       buildSkillBar();
@@ -153,16 +155,18 @@ function startGame(s) {
       saveState(state);
     },
     onStage(stage) {
+      sfx('stage');
       toast(isBigBoss(stage - 1) ? `ล้มบอสใหญ่! ไปด่าน ${stage}` : `ผ่านด่าน! ไปด่าน ${stage}`);
       saveState(state);
     },
-    onBossFail() { battle.bossFled(); toast('บอสหนีไปแล้ว! อัปเกรดแล้วกด FIGHT เพื่อท้าใหม่', 2500); },
+    onBossFail() { sfx('bossFail'); battle.bossFled(); toast('บอสหนีไปแล้ว! อัปเกรดแล้วกด FIGHT เพื่อท้าใหม่', 2500); },
   });
   if (!battle) battle = new Battle($('stage'), game, ui);
   battle.game = game;
   battle.reset();
   battle.updateCam(0, true);
   setAutoMove(state.autoMove, true);
+  syncSoundUi();
   onTeamChanged();
   fit();
   updateHud();
@@ -514,6 +518,7 @@ function updateAgain() {
 function doPull(n) {
   const res = game.pull(n);
   if (!res) return toast('เพชรไม่พอ');
+  sfx(res.some(r => r.rarity === 'SSR') ? 'ssr' : 'gacha');
   saveState(state);
   showResults(res, n);
   buildBanner(); updateGacha(); buildHeroList(); updateHud();
@@ -617,6 +622,7 @@ $('imEnhance').addEventListener('click', () => {
   if (!it) return;
   if (game.enhanceRisk(it) === 'break' && !confirm(`ตีบวก +${it.plus + 1} ถ้าพลาดมีโอกาส ${Math.round(EQUIP.breakChance * 100)}% ที่${itemName(it)}จะแตกหายไปเลย ตีต่อไหม?`)) return;
   const r = game.enhance(openUid);
+  sfx({ ok: 'enhOk', fail: 'enhFail', down: 'enhFail', broken: 'enhBreak' }[r] || 'click');
   if (r === 'gold') toast('เหรียญไม่พอ');
   else if (r === 'ok') { toast(`ตีบวกสำเร็จ! +${game.item(openUid).plus}`); flash('#ffe27a'); }
   else if (r === 'fail') toast('ตีบวกไม่สำเร็จ เสียเหรียญไป', 1500);
@@ -751,17 +757,17 @@ $('shopList').addEventListener('click', e => {
     const r = game.buyPotion(b.dataset.potion), p = POTIONS[b.dataset.potion];
     if (r === 'gold') toast('เหรียญไม่พอ');
     else if (r === 'max') toast('ต่อเวลาได้สูงสุด 60 นาที');
-    else { toast(`${p.icon} ${p.name}! ${p.text}`); flash('#7be04a'); }
+    else { sfx('buy'); toast(`${p.icon} ${p.name}! ${p.text}`); flash('#7be04a'); }
   } else if (b.dataset.outfit) {
     const r = game.buyOutfit(+b.dataset.outfit);
     if (r === 'gold') toast('เหรียญไม่พอ');
     else if (r === 'full') toast('กระเป๋าเต็ม ย่อยของก่อนนะ');
-    else toast(`ได้${itemName(r)}แล้ว! ไปสวมที่หน้าตีบวก`, 2000);
+    else { sfx('buy'); toast(`ได้${itemName(r)}แล้ว! ไปสวมที่หน้าตีบวก`, 2000); }
   } else if (b.dataset.bread) {
     const r = game.buyBread(b.dataset.bread);
     if (r === 'gold') toast('เหรียญไม่พอ');
     else if (r === 'gems') toast('เพชรไม่พอ');
-    else toast(`อร่อย! EXP +${fmt(r)}`);
+    else { sfx('buy'); toast(`อร่อย! EXP +${fmt(r)}`); }
   }
   saveState(state); updateHud(); renderShop();
 });
@@ -789,6 +795,20 @@ $('openGacha').addEventListener('click', () => toggleSheet('gachaSheet'));
 $('openEquip').addEventListener('click', () => toggleSheet('equipSheet'));
 $('openSettings').addEventListener('click', () => toggleSheet('settingsSheet'));
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+
+// ---------- เสียง ----------
+// เบราว์เซอร์ยอมเล่นเสียงหลังผู้เล่นแตะจอเท่านั้น
+document.addEventListener('pointerdown', unlock, true);
+function syncSoundUi() {
+  $('sfxOn').checked = state.sound.sfx;
+  $('musicOn').checked = state.sound.music;
+  $('volume').value = Math.round(state.sound.vol * 100);
+  setSound(state.sound);
+}
+$('sfxOn').addEventListener('change', e => { state.sound.sfx = e.target.checked; setSound(state.sound); sfx('click'); saveState(state); });
+$('musicOn').addEventListener('change', e => { state.sound.music = e.target.checked; setSound(state.sound); saveState(state); });
+$('volume').addEventListener('input', e => { state.sound.vol = e.target.value / 100; setSound(state.sound); });
+$('volume').addEventListener('change', () => { sfx('coin'); saveState(state); });
 
 // ---------- Setting ----------
 function refreshSettings() {
@@ -861,6 +881,7 @@ $('offX2').addEventListener('click', () => {
 // ---------- เซฟอัตโนมัติ ----------
 let hiddenAt = null;
 document.addEventListener('visibilitychange', () => {
+  pause(document.hidden);
   if (document.hidden) { hiddenAt = Date.now(); saveState(state); }
   else if (hiddenAt) { checkOffline(hiddenAt); hiddenAt = null; last = performance.now(); }
 });
@@ -876,6 +897,7 @@ function loop(now) {
   game.tick(dt);
   while (dt > 0) { const step = Math.min(dt, 1 / 30); battle.update(step); dt -= step; }
   autoCast(now);
+  setTrack(gameEl.classList.contains('in-market') ? 'market' : game.mapId());
   battle.draw();
   hudAcc += 1 / 60;
   if (hudAcc >= 0.1) {

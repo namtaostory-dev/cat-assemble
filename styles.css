@@ -380,3 +380,8 @@ button.sklabel.on { color:#fff; background:linear-gradient(#4fc46a, #2b8a43); bo
 .automove { position:absolute; left:50%; bottom:62px; transform:translateX(-50%); border:3px solid #10182b; border-radius:14px; background:linear-gradient(#5a6680, #3a4560); color:#cfd8ec; font-family:'Lilita One', 'Mitr', sans-serif; font-size:13px; padding:2px 12px; z-index:6; cursor:pointer; box-shadow:0 2px 0 #0c1324; }
 .automove.on { background:linear-gradient(#4fc46a, #2b8a43); color:#fff; box-shadow:0 0 10px #5fe05a; }
 #game.in-market .jumpbtn, #game.in-market .automove, #game.in-market .joy { display:none; }
+
+/* ตั้งค่าเสียง */
+.settings .toggle { display:flex; align-items:center; gap:8px; font-size:14px; margin:6px 0; }
+.settings .toggle input[type=checkbox] { width:20px; height:20px; accent-color:#4fc46a; }
+.settings .toggle input[type=range] { flex:1; accent-color:#f2a51f; }

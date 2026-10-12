@@ -2,6 +2,7 @@
 // พิกัดทั้งหมดเป็นหน่วยฉาก 844×390 (canvas ขยายตามจอเอง)
 import { BAL } from './config.js';
 import { catById, itemName } from './game.js';
+import { sfx } from './audio.js';
 
 const img = src => { const i = new Image(); i.src = src; return i; };
 export const W = 844, H = 390;          // ขนาดจอ (หน่วยฉาก)
@@ -153,6 +154,7 @@ export class Battle {
     this.monsters.push({ id: nextId++, x, y: floor.y, plat: floor, dir: -1, speed: 18, w, h, hp, max: hp, boss: true, big,
       name: this.game.monsterName(true), hue: this.game.zoneHue(), hitT: 0, spawnT: 0.5 });
     this.game.startBoss();
+    sfx('boss');
   }
   bossFled() {
     const b = this.boss;
@@ -171,6 +173,7 @@ export class Battle {
   }
   kill(m) {
     m.dead = true; m.deadT = 0;
+    sfx('kill');
     const n = m.boss ? 10 : 2 + Math.floor(Math.random() * 2);
     for (let i = 0; i < n; i++) {
       this.coins.push({ x: m.x, y: m.y - m.h * 0.5, vx: (Math.random() - 0.5) * 220, vy: -260 - Math.random() * 160, ground: m.y, t: 0, fly: false });
@@ -201,6 +204,7 @@ export class Battle {
     const hits = this.monsters.filter(m => this.inSlash(m)).slice(0, 3);
     if (hits.length) {
       hits.forEach((m, i) => { const r = i === 0 ? roll : this.game.rollSlash(); this.damage(m, r.amount, src, r.crit); });
+      sfx(roll.crit ? 'crit' : 'slash');
       this.ui.slashFx(this.sx(h.x + h.face * 60), this.sy(h.y - 34), h.face, roll.crit);
     } else {
       const t = this.target();
@@ -222,8 +226,10 @@ export class Battle {
     if (onGround) {
       if (this.input.down && !h.plat.ground) { h.drop = 0.25; h.plat = null; h.vy = 60; return; }
       h.vy = JUMP_V * 0.85; h.plat = null; h.jumps = 1;
+      sfx('jump');
     } else if ((h.jumps || 0) < 2) {
       h.vy = JUMP_V * 0.95; h.jumps = 2;
+      sfx('jump');
       this.poofs.push({ x: h.x, y: h.y + 6, r: 22, t: 0 });
     }
   }
@@ -365,7 +371,7 @@ export class Battle {
       s.to = tgt;
       const tx = tgt.x, ty = tgt.y - tgt.h * 0.55;
       const dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy), v = (s.wave ? 720 : 620) * dt;
-      if (d <= v) { s.done = true; this.damage(tgt, s.amount, s.src, s.crit); this.ui.boomFx(this.sx(tx), this.sy(ty), s.color); }
+      if (d <= v) { s.done = true; this.damage(tgt, s.amount, s.src, s.crit); this.ui.boomFx(this.sx(tx), this.sy(ty), s.color); sfx(s.wave ? 'hit' : 'cat'); }
       else { s.x += dx / d * v; s.y += dy / d * v; s.ang = Math.atan2(dy, dx); }
     }
     this.shots = this.shots.filter(s => !s.done);
@@ -396,7 +402,7 @@ export class Battle {
         if (c.t > 0.7) c.fly = true;
       } else {
         const to = this.ui.coinTo, dx = to.x / ZOOM + this.cam.x - c.x, dy = to.y / ZOOM + this.cam.y - c.y, d = Math.hypot(dx, dy), v = 900 * dt;
-        if (d < v) c.done = true; else { c.x += dx / d * v; c.y += dy / d * v; }
+        if (d < v) { c.done = true; sfx('coin'); } else { c.x += dx / d * v; c.y += dy / d * v; }
       }
     }
     this.coins = this.coins.filter(c => !c.done);
@@ -427,6 +433,7 @@ export class Battle {
     if (k.buff) {
       if (!g.useSkill(k)) return false;
       this.skfx.push({ type: k.fx, t: 0, dur: 0.9, x: h.x, y: h.y });
+      sfx(k.fx);
       return true;
     }
     const vr = this.viewRect();
@@ -472,6 +479,7 @@ export class Battle {
       case 'meteor': fx.dur = 1.2; start = 0.6; gap = 0.06; fx.to = center; fx.boomAt = 0.6; break;
     }
     this.skfx.push(fx);
+    sfx(k.fx);
     list.forEach((m, i) => {
       for (let n = 0; n < k.hits; n++) this.hits.push({ t: start + i * stagger + n * gap, m, k, row: n });
     });
