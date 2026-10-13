@@ -34,6 +34,7 @@
   </div>
   <div class="hud-dps">DPS <b id="dps">0</b>/s</div>
   <div class="hud-buffs" id="buffs"></div>
+  <button class="campbtn" id="openArena">📜 ด่าน <b id="campNo">1</b></button>
 
   <!-- กลางบน: ด่าน + ป้ายศัตรู/บอส -->
   <div class="hud-c">
@@ -82,6 +83,9 @@
     <div class="mk-title">ตลาดแมว</div>
     <button class="mk-exit" id="mkExit">⚔️ กลับไปสู้</button>
   </div>
+
+  <!-- ด่านเนื้อเรื่อง: จัดทีมสู้อัตโนมัติ (ต้นแบบ) -->
+  <div class="arena" id="arena" hidden><div class="ar-bg" id="arBg"></div><div class="ar-stage"></div></div>
 
   <div class="toast" id="toast"></div>
 

@@ -62,14 +62,15 @@ const catImgs = {};
 const catImg = id => catImgs[id] || (catImgs[id] = img(`assets/cats/${catById(id).img}.png`));
 
 // มอนสเตอร์ธรรมดาชั่วคราว: บูลด็อกจาก SVG
-const DOG = img('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 280">
+export const DOG_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 280">
 <rect x="40" y="150" width="140" height="115" rx="50" fill="#a8774a"/><ellipse cx="110" cy="210" rx="45" ry="40" fill="#e8cfa6"/>
 <rect x="50" y="240" width="40" height="30" rx="14" fill="#8a5d36"/><rect x="130" y="240" width="40" height="30" rx="14" fill="#8a5d36"/>
 <path d="M45 50 Q20 40 22 90 Q30 110 55 95Z M175 50 Q200 40 198 90 Q190 110 165 95Z" fill="#6e4421"/>
 <ellipse cx="110" cy="95" rx="72" ry="66" fill="#b8865a"/><path d="M60 70 L95 82 M160 70 L125 82" stroke="#3a2210" stroke-width="7" stroke-linecap="round"/>
 <circle cx="82" cy="92" r="9" fill="#2a1a0c"/><circle cx="138" cy="92" r="9" fill="#2a1a0c"/><ellipse cx="110" cy="128" rx="48" ry="32" fill="#e8cfa6"/>
 <ellipse cx="110" cy="112" rx="16" ry="10" fill="#2a1a0c"/><path d="M78 140 Q110 162 142 140 L142 150 Q110 172 78 150Z" fill="#7a1f1f"/>
-<rect x="48" y="158" width="124" height="18" rx="9" fill="#3b6fd2"/></svg>`));
+<rect x="48" y="158" width="124" height="18" rx="9" fill="#3b6fd2"/></svg>`);
+const DOG = img(DOG_SRC);
 
 let nextId = 1;
 

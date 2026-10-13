@@ -129,6 +129,7 @@ export function sfx(name) {
 const TRACKS = {
   forest: { bpm: 104, wave: 'square',   chords: [57, 53, 48, 55], scale: [0, 2, 4, 7, 9, 12, 14, 16], seed: 7 },
   beach:  { bpm: 118, wave: 'triangle', chords: [53, 55, 60, 57], scale: [0, 2, 4, 5, 7, 9, 12, 14], seed: 21 },
+  arena:  { bpm: 138, wave: 'sawtooth', chords: [57, 57, 53, 55], scale: [0, 2, 3, 7, 8, 12, 14, 15], seed: 11 },
   market: { bpm: 92,  wave: 'square',   chords: [50, 55, 48, 53], scale: [0, 3, 5, 7, 10, 12, 15], seed: 3 },
 };
 let track = null, music = null;

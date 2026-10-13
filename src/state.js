@@ -22,6 +22,7 @@ export function newState() {
     autoMove: true,    // ตัวเราเดิน/กระโดดไล่ศัตรูเอง (ปิด = บังคับด้วยแป้นและปุ่มกระโดด)
     potions: {},       // id ยา → Date.now() ที่ยาหมดฤทธิ์
     sound: { sfx: true, music: true, vol: 0.7 },
+    campaign: { stage: 1, team: [] },   // ด่านเนื้อเรื่องที่กำลังจะเล่น · team: [{ id, col, row }] (id 'hero' = ตัวเรา)
     lastSeen: Date.now(),
     stats: { taps: 0, kills: 0, bosses: 0 },
     level: 1,
@@ -66,6 +67,7 @@ function migrate(data) {
     skillUntil: timeMap(d.skillUntil),
     autoSkill: d.autoSkill !== false,
     autoMove: d.autoMove !== false,
+    campaign: { stage: int(obj(d.campaign).stage, 1, 1), team: [] },
     sound: { sfx: obj(d.sound).sfx !== false, music: obj(d.sound).music !== false, vol: Math.min(1, num(obj(d.sound).vol, 0.7)) },
     potions: Object.fromEntries(Object.keys(POTIONS).filter(k => typeof obj(d.potions)[k] === 'number' && isFinite(d.potions[k])).map(k => [k, Math.min(d.potions[k], Date.now() + POTION_MAX_MIN * 60000)])),
     lastSeen: num(d.lastSeen, Date.now()),
@@ -112,6 +114,16 @@ function migrate(data) {
   if (!s.cats[STARTER]) s.cats[STARTER] = { lv: 1, star: 1, dupes: 0 };
 
   if (int(d.v, 1) < 3) s.level = Math.max(s.level, Math.min(59, Math.floor(s.maxStage * 0.6)));
+
+  // ทีมด่านเนื้อเรื่อง: เฉพาะตัวเราหรือแมวที่มีจริง ช่องอยู่ในกระดาน 3×3 ไม่ซ้ำกัน ไม่เกิน 5 ตัว
+  const camp = obj(d.campaign);
+  if (Array.isArray(camp.team)) for (const u of camp.team.slice(0, 5)) {
+    const x = obj(u), col = int(x.col, -1), row = int(x.row, -1);
+    if (!(x.id === 'hero' || (typeof x.id === 'string' && Object.hasOwn(s.cats, x.id)))) continue;
+    if (col > 2 || row > 2 || col < 0 || row < 0) continue;
+    if (s.campaign.team.some(o => o.id === x.id || (o.col === col && o.row === row))) continue;
+    s.campaign.team.push({ id: x.id, col, row });
+  }
 
   // คู่หูที่เรียกอยู่: เก็บเฉพาะ id ที่มีจริง ไม่ซ้ำ ไม่เกินจำนวนช่องที่ปลดแล้ว
   const slots = LEVEL.slotsAt.filter(l => s.level >= l).length;

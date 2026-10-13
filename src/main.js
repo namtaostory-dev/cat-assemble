@@ -4,6 +4,7 @@ import { newState, loadState, saveState, clearSave, exportSave, importSave } fro
 import { Game, catById, catDpsAt, swordDmgAt, nextMile, isBigBoss, skillPower, itemValue, itemName, expNeed, slotsAtLevel } from './game.js';
 import { Battle, W, H } from './battle.js';
 import { sfx, setSound, unlock, pause, setTrack } from './audio.js';
+import { Arena } from './arena.js';
 
 const $ = id => document.getElementById(id);
 const gameEl = $('game'), fx = $('fx');
@@ -25,6 +26,7 @@ function fit() {
   view = { l: -x / scale, t: -y / scale, w: window.innerWidth / scale, h: window.innerHeight / scale };
   battle?.resize(scale, view);
   layoutMarket();
+  layoutArena();
 }
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', () => setTimeout(fit, 250));
@@ -121,7 +123,7 @@ function toast(t, ms = 1200) {
 
 // ---------- เริ่มเกม ----------
 let state = loadState() || newState();
-let game, battle;
+let game, battle, arena;
 const ui = {
   pop: popOn, slashFx, tapFx, boomFx, flash,
   coinTo: { x: 620, y: 22 },  // ไอคอนเหรียญมุมขวาบน เหรียญจะบินเข้าตรงนี้
@@ -162,6 +164,13 @@ function startGame(s) {
     onBossFail() { sfx('bossFail'); battle.bossFled(); toast('บอสหนีไปแล้ว! อัปเกรดแล้วกด FIGHT เพื่อท้าใหม่', 2500); },
   });
   if (!battle) battle = new Battle($('stage'), game, ui);
+  if (arena) arena.game = game;
+  else arena = new Arena($('arena'), game, {
+    toast,
+    save: () => saveState(state),
+    onReward(gold, gems) { state.gold += gold; state.gemsFree += gems; updateHud(); },
+    onClose() { gameEl.classList.remove('in-arena'); updateHud(); },
+  });
   battle.game = game;
   battle.reset();
   battle.updateCam(0, true);
@@ -299,6 +308,7 @@ function updateHud() {
   $('gold').textContent = fmt(s.gold);
   $('gems').textContent = fmt(game.gems());
   $('heroLv').textContent = s.level;
+  $('campNo').textContent = s.campaign.stage;
   $('expBar').style.width = Math.min(100, s.exp / expNeed(s.level) * 100) + '%';
   $('equipBadge').classList.toggle('on', hasBetterGear());
   $('stageNo').textContent = s.stage;
@@ -647,6 +657,23 @@ $('salvageC').addEventListener('click', () => {
   saveState(state); buildEquip(); updateHud();
 });
 
+// ---------- ด่านเนื้อเรื่อง ----------
+// พื้นหลังเต็มจอ ส่วนตัวกระดานอยู่ในกรอบเกม (หลบ safe area เหมือน HUD)
+function layoutArena() {
+  if (!view) return;
+  Object.assign($('arena').style, { left: view.l + 'px', top: view.t + 'px', width: view.w + 'px', height: view.h + 'px' });
+  Object.assign($('arena').querySelector('.ar-stage').style, { left: -view.l + 'px', top: -view.t + 'px' });
+}
+function openArena() {
+  closeSheets();
+  const map = { forest: 'forest', beach: 'beach' }[game.mapId()] || 'forest';
+  $('arBg').style.backgroundImage = `url(assets/scenes/${map}.webp)`;
+  gameEl.classList.add('in-arena');
+  layoutArena();
+  arena.open();
+}
+$('openArena').addEventListener('click', openArena);
+
 // ---------- ตลาด (ออฟไลน์) ----------
 // ภาพตลาดขยายเต็มจอแบบ cover ชิดขอบล่าง (ร้านอยู่ครึ่งล่างของภาพ) พิกัดร้านเป็นพิกัดบนภาพ 1024×572
 let mk = { k: 1, heroX: 470, walkTimer: 0, shop: null };
@@ -890,14 +917,15 @@ setInterval(() => saveState(state), BAL.saveEverySec * 1000);
 
 // ---------- ลูปหลัก ----------
 // นับตามเวลาจริง: ถ้าเฟรมมาช้าจะชดเชยให้สูงสุด 5 วิ (ฉากต่อสู้ขยับทีละไม่เกิน 1/30 วิ กันกระโดดทะลุแท่น)
-let last = performance.now(), hudAcc = 0;
+let last = performance.now(), hudAcc = 0, lastArena = performance.now();
 function loop(now) {
   let dt = Math.min(5, (now - last) / 1000);
   last = now;
   game.tick(dt);
   while (dt > 0) { const step = Math.min(dt, 1 / 30); battle.update(step); dt -= step; }
   autoCast(now);
-  setTrack(gameEl.classList.contains('in-market') ? 'market' : game.mapId());
+  setTrack(gameEl.classList.contains('in-arena') ? 'arena' : gameEl.classList.contains('in-market') ? 'market' : game.mapId());
+  arena.update(Math.min(0.1, (now - lastArena) / 1000)); lastArena = now;
   battle.draw();
   hudAcc += 1 / 60;
   if (hudAcc >= 0.1) {

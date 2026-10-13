@@ -1,5 +1,5 @@
 // เพิ่มไฟล์ใหม่ในเกมเมื่อไหร่ ให้ใส่ใน SHELL และเปลี่ยนเลขเวอร์ชัน
-const CACHE = 'cat-assemble-v31';
+const CACHE = 'cat-assemble-v32';
 const SHELL = [
   './',
   'index.html',
@@ -9,6 +9,7 @@ const SHELL = [
   'src/game.js',
   'src/battle.js',
   'src/audio.js',
+  'src/arena.js',
   'src/config.js',
   'src/state.js',
   'src/format.js',

@@ -211,6 +211,49 @@ export const BREADS = [
   { id: 'cake', name: 'เค้กปลาแซลมอน', icon: '🎂', exp: 1,    gems: 60 },
 ];
 
+// ---------- ด่านเนื้อเรื่อง: จัดทีมสู้อัตโนมัติบนกระดาน 3×3 (ต้นแบบ) ----------
+// บทบาท: hp/atk = ตัวคูณจากค่าพื้นฐาน, rate = วินาทีต่อการโจมตี, ranged = ยิงไกล, back = เล็งแถวหลังก่อน
+export const ROLES = {
+  tank:     { name: 'แทงก์',   hp: 1.7,  atk: 0.65, rate: 1.3, ranged: false, armor: 0.3 },
+  melee:    { name: 'ประชิด',  hp: 1.15, atk: 1.0,  rate: 1.0, ranged: false },
+  ranged:   { name: 'ยิงไกล',  hp: 0.8,  atk: 1.1,  rate: 1.1, ranged: true },
+  assassin: { name: 'นักฆ่า',  hp: 0.85, atk: 1.3,  rate: 0.8, ranged: false, back: true },
+  support:  { name: 'ซัพพอร์ต', hp: 0.95, atk: 0.75, rate: 1.2, ranged: true },
+};
+// ค่าพื้นฐานตามความหายาก (ตัวเราใช้ HERO_UNIT)
+export const UNIT_BASE = { C: { hp: 100, atk: 10 }, R: { hp: 140, atk: 14 }, SR: { hp: 190, atk: 19 }, SSR: { hp: 260, atk: 26 } };
+export const HERO_UNIT = { hp: 230, atk: 21, role: 'melee', ult: 'titan' };
+// ท่าไม้ตายเมื่อพลังเต็ม 100: kind = aoe | single | heal | shield | stun | dot
+// pick = เป้า (front แถวหน้าสุด, back แถวหลังสุด, lowest เลือดน้อยสุด, all ทุกตัว, row แถวเดียวกับเป้า, col คอลัมน์หน้าสุดทั้งคอลัมน์)
+export const ULTS = {
+  titan:   { name: 'ฟันไททัน',      kind: 'aoe',    pick: 'col',    mul: 2.4, color: '#bff4ff' },
+  volt:    { name: 'สายฟ้าลูกโซ่',   kind: 'aoe',    pick: 3,        mul: 1.6, color: '#ffe23a' },
+  toxin:   { name: 'หมอกพิษ',       kind: 'dot',    pick: 'all',    mul: 0.5, dur: 4, color: '#7be04a' },
+  rock:    { name: 'โล่หิน',         kind: 'shield', pick: 'allies', mul: 2.0, color: '#c08a52' },
+  blaze:   { name: 'ฟันเพลิง',       kind: 'aoe',    pick: 'row',    mul: 2.6, color: '#ff6a2a' },
+  frost:   { name: 'แช่แข็ง',        kind: 'stun',   pick: 'col',    mul: 1.2, dur: 2, color: '#5ac8ff' },
+  gale:    { name: 'ลมพุ่งทะลวง',    kind: 'single', pick: 'back',   mul: 2.8, color: '#4fe3d6' },
+  lumi:    { name: 'แสงรักษา',       kind: 'heal',   pick: 'allies', mul: 2.2, color: '#fff2a0' },
+  nox:     { name: 'จันทร์ดับ',       kind: 'single', pick: 'front',  mul: 4.2, color: '#a35cff' },
+  bombardier: { name: 'ระเบิดลูกใหญ่', kind: 'aoe',  pick: 'all',    mul: 1.2, color: '#ff9a3a' },
+  saboteur:   { name: 'ลอบสังหาร',     kind: 'single', pick: 'lowest', mul: 4.5, color: '#ff5a4a' },
+  empress:    { name: 'ฝนเวทมนตร์',    kind: 'aoe',  pick: 'all',    mul: 1.7, color: '#ff9ad5' },
+  smash:   { name: 'ทุบพื้น',        kind: 'aoe',    pick: 'row',    mul: 2.0, color: '#d0a070' },
+};
+export const CAT_ROLE = {
+  volt: 'ranged', toxin: 'support', rock: 'tank', blaze: 'melee', frost: 'ranged', gale: 'assassin',
+  lumi: 'support', nox: 'ranged', bombardier: 'ranged', saboteur: 'assassin', empress: 'support',
+};
+export const CAMPAIGN = {
+  teamMax: 5,
+  timeLimit: 60,                 // วินาที เกินแล้วนับว่าแพ้
+  lvGrowth: 0.05,                // ค่าพลังต่อเลเวล
+  starGrowth: 1.25,              // ค่าพลังต่อดาว
+  enemyHp: 110, enemyAtk: 11, enemyGrowth: 1.13,   // ศัตรูด่านที่ n: ฐาน × growth^(n−1)
+  bossEvery: 5, bossHp: 4, bossAtk: 1.6,
+  reward: { gems: 30, goldKills: 60, bossGems: 100 },    // เหรียญ = เหรียญต่อมอนสเตอร์ในด่านสูงสุด × goldKills
+};
+
 // โหมดทดสอบ: ปุ่ม + รับเหรียญและเพชรฟรี ต้องตั้งเป็น false ก่อนเปิดขายเพชรจริง
 export const DEV = { freeCurrency: true, gemsPerClick: 1000, minGoldPerClick: 10000 };
 
